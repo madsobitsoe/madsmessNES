@@ -1,5 +1,5 @@
 IDIR=include
-CC=gcc
+CC=gcc -Wall -Wextra
 CFLAGS=-I$(IDIR)
 SRCDIR=src
 ODIR=obj
