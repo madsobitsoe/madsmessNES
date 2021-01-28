@@ -30,7 +30,7 @@ void print_status_reg(nes_state *state) {
 }
 
 void print_regs(nes_state *state) {
-  printf("ACC: 0x%02x\nX:   0x%02x\nY:   0x%02x\nSP:  0x%04x\nPC:  0x%04x\nFlags: 0x%02x - ",
+  printf("\x1b[1;31mACC: \x1b[0m0x%02x\n\x1b[1;32mX: \x1b[0m  0x%02x\n\x1b[1;33mY: \x1b[0m  0x%02x\n\x1b[1;34mSP: \x1b[0m 0x%04x\n\x1b[1;35mPC:\x1b[0m  0x%04x\n\x1b[1;36mFlags: \x1b[0m0x%02x - ",
          state->registers->ACC,
          state->registers->X,
          state->registers->Y,
@@ -42,6 +42,16 @@ void print_regs(nes_state *state) {
   printf("\n");
 }
 
+
+void print_stack(nes_state *state) {
+  // Stack is located at 0x100-0x1ff
+  // stack pointer should be offset by 0x100
+  // The stack grows downwards, so SP is initialized to 0xFF
+  int offset = 0x100;
+  for (int i = 10; i >= 0; i--) {
+    printf("\t%04X\t%02X\n", state->registers->SP-i + offset, read_mem_byte(state, state->registers->SP - i + offset));
+  }
+}
 
 
 
@@ -81,9 +91,32 @@ void set_carry_flag(nes_state *state) {
   state->registers->SR |= 1;
 }
 
+bool is_carry_flag_set(nes_state *state) {
+  return ((state->registers->SR & 1) == 1);
+}
+bool is_zero_flag_set(nes_state *state) {
+  return ((state->registers->SR & 2) == 2);
+}
+bool is_interrupt_flag_set(nes_state *state) {
+  return ((state->registers->SR & 4) == 4);
+}
+bool is_decimal_flag_set(nes_state *state) {
+  return ((state->registers->SR & 8) == 8);
+}
+bool is_break_flag_set(nes_state *state) {
+  return ((state->registers->SR & 16) == 16);
+}
+bool is_overflow_flag_set(nes_state *state) {
+  return ((state->registers->SR & 64) == 64);
+}
+bool is_negative_flag_set(nes_state *state) {
+  return ((state->registers->SR & 128) == 128);
+}
+
+
 
 // Translate a memory location to the actual memory location in the nes
-uint16_t translate_memory_location(unsigned short memloc) {
+  uint16_t translate_memory_location(unsigned short memloc) {
   /*   0000-07FF is RAM*/
   if (memloc <= 0x7ff) { return memloc; }
   /* 0800-1FFF are mirrors of RAM (you AND the address with 07FF to get the effective address)    */
@@ -111,6 +144,11 @@ uint16_t translate_memory_location(unsigned short memloc) {
 }
 
 
+// Push a value to the stack
+void push(nes_state *state, uint8_t value) {
+  state->memory[state->registers->SP + 0x100] = value;
+  state->registers->SP--;;
+}
 
 
 uint16_t read_mem_short(nes_state *state, uint16_t memloc) {
@@ -124,11 +162,12 @@ uint16_t read_mem_short(nes_state *state, uint16_t memloc) {
   }
   else if (translated >= 0x8000 && translated <= 0xffff) {
     unsigned short loc = translated - 0xc000;
-    /* printf("Trying to read loc=0x%x\n", loc); */
     value = (uint16_t) state->rom[loc] | (((uint16_t) state->rom[loc+1]) << 8);
   }
-  else { printf("location outside of valid memory!\n"); }
-  /* printf("Value at location: 0x%x\n", value); */
+  else {
+    printf("location outside of valid memory! %04X\n", memloc);
+    print_state(state);
+  }
   return value;
 }
 uint8_t read_mem_byte(nes_state *state, uint16_t memloc) {
@@ -150,6 +189,7 @@ uint8_t fetch_next_opcode(nes_state *state) {
 void exec_JMP(nes_state *state) {
   uint16_t new_pc;
   switch (state->current_opcode) {
+    // JMP
   case 0x4c:
     /*     Absolute addressing */
 
@@ -171,25 +211,56 @@ void exec_JMP(nes_state *state) {
       set_pc(state, new_pc);
       break;
     }
+    break;
+    // JSR
+  case 0x20:
+    /* #  address R/W description */
+    /*     --- ------- --- ------------------------------------------------- */
+    /*     1    PC     R  fetch opcode, increment PC */
+    /*       2    PC     R  fetch low address byte, increment PC */
+    /*       3  $0100,S  R  internal operation (predecrement S?) */
+    /*       4  $0100,S  W  push PCH on stack, decrement S */
+    /*       5  $0100,S  W  push PCL on stack, decrement S */
+    /*       6    PC     R  copy low address byte to PCL, fetch high address */
+    /*       byte to PCH */
+    switch(state->stall_cycles) {
+    case 5:
+      state->registers->PC += 1;
+      break;
+    case 4: // Decrement SP here?
+      break;
+    case 3:
+      push(state, read_mem_byte(state, state->registers->PC));
+      break;
+    case 2:
+      push(state, read_mem_byte(state, state->registers->PC+1));
+      break;
+    case 1:
+      new_pc = read_mem_short(state, state->registers->PC - 1);
+      set_pc(state, new_pc);
+      break;
+    }
+    break;
+
   }
 
 
   //  case 0x6c:
   /*   Absolute indirect addressing (JMP) */
 
-    /* #   address  R/W description */
-    /*     --- --------- --- ------------------------------------------ */
-    /*     1     PC      R  fetch opcode, increment PC */
-    /*     2     PC      R  fetch pointer address low, increment PC */
-    /*     3     PC      R  fetch pointer address high, increment PC */
-    /*     4   pointer   R  fetch low address to latch */
-    /*     5  pointer+1* R  fetch PCH, copy latch to PCL */
+  /* #   address  R/W description */
+  /*     --- --------- --- ------------------------------------------ */
+  /*     1     PC      R  fetch opcode, increment PC */
+  /*     2     PC      R  fetch pointer address low, increment PC */
+  /*     3     PC      R  fetch pointer address high, increment PC */
+  /*     4   pointer   R  fetch low address to latch */
+  /*     5  pointer+1* R  fetch PCH, copy latch to PCL */
 
-    /*     Note: * The PCH will always be fetched from the same page */
-    /*     than PCL, i.e. page boundary crossing is not handled. */
+  /*     Note: * The PCH will always be fetched from the same page */
+  /*     than PCL, i.e. page boundary crossing is not handled. */
 
 
-  }
+}
 
 
 void exec_LDX(nes_state *state) {
@@ -249,9 +320,80 @@ void exec_STX(nes_state *state) {
   }
 }
 
+
+void exec_FLAGS(nes_state *state) {
+  switch(state->current_opcode) {
+    // SEC - Set Carry Flag
+  case 0x38:
+    switch(state->stall_cycles) {
+    case 1:
+      set_carry_flag(state);
+      break;
+    }
+    break;
+
+  }
+
+}
+
+void exec_BRANCH(nes_state *state) {
+  uint8_t operand;
+  // See this page: http://www.6502.org/tutorials/6502opcodes.html#BCS
+  /* MNEMONIC                       HEX */
+  /*   BPL (Branch on PLus)           $10 */
+  /*   BMI (Branch on MInus)          $30 */
+  /*   BVC (Branch on oVerflow Clear) $50 */
+  /*   BVS (Branch on oVerflow Set)   $70 */
+  /*   BCC (Branch on Carry Clear)    $90 */
+  /*   BCS (Branch on Carry Set)      $B0 */
+  /*   BNE (Branch on Not Equal)      $D0 */
+  /*   BEQ (Branch on EQual)          $F0 */
+  /*   Relative addressing (BCC, BCS, BNE, BEQ, BPL, BMI, BVC, BVS) */
+
+  /* #   address  R/W description */
+  /*     --- --------- --- --------------------------------------------- */
+  /*     1     PC      R  fetch opcode, increment PC */
+  /*     2     PC      R  fetch operand, increment PC */
+  /*     3     PC      R  Fetch opcode of next instruction, */
+  /*     If branch is taken, add operand to PCL. */
+  /*     Otherwise increment PC. */
+  /*     4+    PC*     R  Fetch opcode of next instruction. */
+  /*     Fix PCH. If it did not change, increment PC. */
+  /*     5!    PC      R  Fetch opcode of next instruction, */
+  /*     increment PC. */
+
+  /*     Notes: The opcode fetch of the next instruction is included to */
+  /*     this diagram for illustration purposes. When determining */
+  /*     real execution times, remember to subtract the last */
+  /*     cycle. */
+  /*          * The high byte of Program Counter (PCH) may be invalid */
+  /*             at this time, i.e. it may be smaller or bigger by $100. */
+  /*          + If branch is taken, this cycle will be executed. */
+  /*          ! If branch occurs to different page, this cycle will be */
+  /*            executed. */
+  switch(state->current_opcode) {
+    // BCS - Branch on Carry Set
+  case 0xB0:
+    switch(state->stall_cycles) {
+      // Still not sure how to handle all of this branching stuff with extra cycles.
+    case 1:
+      operand = read_mem_byte(state, state->registers->PC);
+      state->registers->PC++;
+      break;
+
+    }
+  }
+}
+
+
 void exec_opcode(nes_state *state) {
   // Terrible, but good enough for now.
   switch(state->current_opcode) {
+  case 0x38:
+    exec_FLAGS(state);
+    break;
+    // JSR
+  case 0x20:
     // JMP Absolute
   case 0x4c:
     exec_JMP(state);
@@ -268,10 +410,19 @@ void exec_opcode(nes_state *state) {
   }
 }
 
-int cycles_for_opcode(uint8_t opcode) {
-  uint8_t cycles = 2;
+int cycles_for_opcode(nes_state *state) { //uint8_t opcode) {
+  // In general an instruction takes 2 cycles. The first cycle is already handled, so default is 1.
+  uint8_t cycles = 1;
   // TODO - Replace with table/array?
-  switch(opcode) {
+  switch(state->current_opcode) {
+    // JSR
+  case 0x20:
+    cycles = 5;
+    break;
+    // SEC - Set carry flag
+  case 0x38:
+    cycles = 1;
+    break;
   case 0xa2:
     cycles = 1;
     break;
@@ -280,6 +431,15 @@ int cycles_for_opcode(uint8_t opcode) {
     break;
   case 0x86:
     cycles = 2;
+    break;
+    // BCS - Branch if Carry Set
+  case 0xB0:
+    if (is_carry_flag_set(state)) {
+      cycles++;
+      // If a page boundary is crossed, add another cycle
+      /* if () {} */
+    }
+
     break;
 
   }
@@ -293,7 +453,7 @@ void cpu_step(nes_state *state) {
     // Fetch the instruction at $PC
     state->current_opcode = fetch_next_opcode(state);
     // Get the amount of cycles for the instruction
-    state->stall_cycles = cycles_for_opcode(state->current_opcode);
+    state->stall_cycles = cycles_for_opcode(state);
     // Increment PC
     state->registers->PC += 1;
   }

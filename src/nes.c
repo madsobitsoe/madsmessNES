@@ -78,7 +78,8 @@ void attach_rom(nes_state *state, unsigned char *rommem) {
   state->rom = rommem;
 }
 void print_state(nes_state *state) {
-  /* printf("Cycle:  %lld\n", state->master_clock); */
+  printf("Cycle:  %lld\n", state->master_clock);
   printf("Stall cycles: %d\n", state->stall_cycles);
-  /* print_regs(state); */
+  print_regs(state);
+  print_stack(state);
 }

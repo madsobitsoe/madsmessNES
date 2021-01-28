@@ -25,6 +25,16 @@ FILE *logfile;
 
 void disass(nes_state *state, char *output) {
   switch(state->current_opcode) {
+    // JSR
+  case 0x20:
+    sprintf(output, "%04X  %02X %02X %02X  JSR $%02X%02X",
+            state->current_opcode_PC,
+            state->current_opcode,
+            read_mem_byte(state, state->current_opcode_PC+1),
+            read_mem_byte(state, state->current_opcode_PC+2),
+            read_mem_byte(state, state->current_opcode_PC+2),
+            read_mem_byte(state, state->current_opcode_PC+1));
+    break;
     // JMP
   case 0x4c:
     sprintf(output, "%04X  %02X %02X %02X  JMP $%02X%02X",
@@ -51,6 +61,49 @@ void disass(nes_state *state, char *output) {
             read_mem_byte(state, state->current_opcode_PC+1),
             read_mem_byte(state, state->current_opcode_PC+1),
             read_mem_byte(state, read_mem_byte(state, state->current_opcode_PC+1)));
+    break;
+    // NOP
+  case 0xEA:
+    sprintf(output, "%04X  %02X        NOP",
+            state->current_opcode_PC,
+            state->current_opcode);
+    break;
+    // SEC
+  case 0x38:
+    sprintf(output, "%04X  %02X        SEC",
+            state->current_opcode_PC,
+            state->current_opcode);
+    break;
+    // SEI
+  case 0x78:
+    sprintf(output, "%04X  %02X        SEI",
+            state->current_opcode_PC,
+            state->current_opcode);
+    break;
+    // SED
+  case 0xF8:
+    sprintf(output, "%04X  %02X        SED",
+            state->current_opcode_PC,
+            state->current_opcode);
+    break;
+    // PHP
+  case 0x08:
+    sprintf(output, "%04X  %02X        PHP",
+            state->current_opcode_PC,
+            state->current_opcode);
+    break;
+    // PLA
+  case 0x68:
+    sprintf(output, "%04X  %02X        PLA",
+            state->current_opcode_PC,
+            state->current_opcode);
+    break;
+
+    // CLC
+  case 0x18:
+    sprintf(output, "%04X  %02X        CLC",
+            state->current_opcode_PC,
+            state->current_opcode);
     break;
   default:
     sprintf(output, "not implemented yet");
