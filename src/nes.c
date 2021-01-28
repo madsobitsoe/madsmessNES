@@ -8,9 +8,9 @@ void step(nes_state *state) {
   ppu_step(state);
   // Log if needed
   // Step one cycle in CPU
-  if (state->stall_cycles == 0) {
-    state->current_opcode_PC = state->registers->PC;
-    state->current_opcode = read_mem_byte(state, state->registers->PC);
+  if (state->cpu->stall_cycles == 0) {
+    state->cpu->current_opcode_PC = state->cpu->registers->PC;
+    state->cpu->current_opcode = read_mem_byte(state, state->cpu->registers->PC);
     logger_log(state);
   }
   cpu_step(state);
@@ -21,14 +21,16 @@ nes_state* init_state() {
   // Create the state and allocate memory
   nes_state *state = malloc(sizeof(nes_state));
   state->master_clock = 0;
+  cpu_state *cpu = malloc(sizeof(cpu_state));
   // Create the registers and allocate memory
   registers *regs = malloc(sizeof(registers));
   init_registers(regs);
-  state->registers = regs;
+  state->cpu = cpu;
+  state->cpu->registers = regs;
   // Set up memory (malloc)
   state->memory = malloc(2048); // 2kb ram (at least for now)
   state->running = true;
-  state->stall_cycles = 0;
+  state->cpu->stall_cycles = 0;
   state->ppu_cycle = 0;
   state->ppu_frame = 0;
   return state;
@@ -36,7 +38,8 @@ nes_state* init_state() {
 
 // Free up the pointers used by a state
 void destroy_state(nes_state *state) {
-  free(state->registers);
+  free(state->cpu->registers);
+  free(state->cpu);
   free(state->memory);
   free(state);
 }
@@ -62,10 +65,10 @@ void power_on(nes_state *state) {
 
 void reset(nes_state *state) {
   // Just fake it for now.
-  state->registers->PC = 0xFFFD;
+  state->cpu->registers->PC = 0xFFFD;
   set_interrupt_flag(state);
-  state->registers->SP = 0xFD;
-  state->master_clock = 6;
+  state->cpu->registers->SP = 0xFD;
+  state->cpu->cpu_cycle = 6;
   /* state->current_opcode_PC = 0xFFFD; */
   /* state->current_opcode = read_mem_byte(state, state->registers->PC); */
   state->ppu_cycle = 18;
@@ -78,8 +81,8 @@ void attach_rom(nes_state *state, unsigned char *rommem) {
   state->rom = rommem;
 }
 void print_state(nes_state *state) {
-  printf("Cycle:  %lld\n", state->master_clock);
-  printf("Stall cycles: %d\n", state->stall_cycles);
+  printf("Cycle:  %lld\n", state->cpu->cpu_cycle);
+  printf("Stall cycles: %d\n", state->cpu->stall_cycles);
   print_regs(state);
   print_stack(state);
 }

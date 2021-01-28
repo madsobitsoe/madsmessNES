@@ -18,7 +18,7 @@ void init_registers(registers *regs) {
 
 void print_status_reg(nes_state *state) {
   // nv1bdizc
-  uint8_t status = state->registers->SR;
+  uint8_t status = state->cpu->registers->SR;
   if ((status & 128) == 128) { printf("N"); } else { printf("n"); }
   if ((status & 64) == 64) { printf("V"); } else { printf("v"); }
   if ((status & 32) == 32) { printf("1"); } else { printf("ERROR in always 1"); }
@@ -31,12 +31,12 @@ void print_status_reg(nes_state *state) {
 
 void print_regs(nes_state *state) {
   printf("\x1b[1;31mACC: \x1b[0m0x%02x\n\x1b[1;32mX: \x1b[0m  0x%02x\n\x1b[1;33mY: \x1b[0m  0x%02x\n\x1b[1;34mSP: \x1b[0m 0x%04x\n\x1b[1;35mPC:\x1b[0m  0x%04x\n\x1b[1;36mFlags: \x1b[0m0x%02x - ",
-         state->registers->ACC,
-         state->registers->X,
-         state->registers->Y,
-         state->registers->SP,
-         state->registers->PC,
-         state->registers->SR
+         state->cpu->registers->ACC,
+         state->cpu->registers->X,
+         state->cpu->registers->Y,
+         state->cpu->registers->SP,
+         state->cpu->registers->PC,
+         state->cpu->registers->SR
          );
   print_status_reg(state);
   printf("\n");
@@ -49,68 +49,68 @@ void print_stack(nes_state *state) {
   // The stack grows downwards, so SP is initialized to 0xFF
   int offset = 0x100;
   for (int i = 10; i >= 0; i--) {
-    printf("\t%04X\t%02X\n", state->registers->SP-i + offset, read_mem_byte(state, state->registers->SP - i + offset));
+    printf("\t%04X\t%02X\n", state->cpu->registers->SP-i + offset, read_mem_byte(state, state->cpu->registers->SP - i + offset));
   }
 }
 
 
 
 void set_pc(nes_state *state, unsigned short pc) {
-  state->registers->PC = pc;
-  state->current_opcode_PC = pc;
-  state->current_opcode = read_mem_byte(state, pc);
+  state->cpu->registers->PC = pc;
+  state->cpu->current_opcode_PC = pc;
+  state->cpu->current_opcode = read_mem_byte(state, pc);
 }
 
 void set_negative_flag(nes_state *state) {
-  state->registers->SR |= 128;
+  state->cpu->registers->SR |= 128;
 }
 
 void set_overflow_flag(nes_state *state) {
-  state->registers->SR |= 64;
+  state->cpu->registers->SR |= 64;
 }
 
 
 void set_break_flag(nes_state *state) {
-  state->registers->SR |= 16;
+  state->cpu->registers->SR |= 16;
 }
 
 
 void set_decimal_flag(nes_state *state) {
-  state->registers->SR |= 8;
+  state->cpu->registers->SR |= 8;
 }
 
 void set_interrupt_flag(nes_state *state) {
-  state->registers->SR |= 4;
+  state->cpu->registers->SR |= 4;
 }
 
 void set_zero_flag(nes_state *state) {
-  state->registers->SR |= 2;
+  state->cpu->registers->SR |= 2;
 }
 
 void set_carry_flag(nes_state *state) {
-  state->registers->SR |= 1;
+  state->cpu->registers->SR |= 1;
 }
 
 bool is_carry_flag_set(nes_state *state) {
-  return ((state->registers->SR & 1) == 1);
+  return ((state->cpu->registers->SR & 1) == 1);
 }
 bool is_zero_flag_set(nes_state *state) {
-  return ((state->registers->SR & 2) == 2);
+  return ((state->cpu->registers->SR & 2) == 2);
 }
 bool is_interrupt_flag_set(nes_state *state) {
-  return ((state->registers->SR & 4) == 4);
+  return ((state->cpu->registers->SR & 4) == 4);
 }
 bool is_decimal_flag_set(nes_state *state) {
-  return ((state->registers->SR & 8) == 8);
+  return ((state->cpu->registers->SR & 8) == 8);
 }
 bool is_break_flag_set(nes_state *state) {
-  return ((state->registers->SR & 16) == 16);
+  return ((state->cpu->registers->SR & 16) == 16);
 }
 bool is_overflow_flag_set(nes_state *state) {
-  return ((state->registers->SR & 64) == 64);
+  return ((state->cpu->registers->SR & 64) == 64);
 }
 bool is_negative_flag_set(nes_state *state) {
-  return ((state->registers->SR & 128) == 128);
+  return ((state->cpu->registers->SR & 128) == 128);
 }
 
 
@@ -146,8 +146,8 @@ bool is_negative_flag_set(nes_state *state) {
 
 // Push a value to the stack
 void push(nes_state *state, uint8_t value) {
-  state->memory[state->registers->SP + 0x100] = value;
-  state->registers->SP--;;
+  state->memory[state->cpu->registers->SP + 0x100] = value;
+  state->cpu->registers->SP--;;
 }
 
 
@@ -179,7 +179,7 @@ uint8_t read_mem_byte(nes_state *state, uint16_t memloc) {
 
 uint8_t fetch_next_opcode(nes_state *state) {
   printf("Fetching next opcode!");
-  uint16_t translated = translate_memory_location(state->registers->PC);
+  uint16_t translated = translate_memory_location(state->cpu->registers->PC);
 
   uint8_t opcode = read_mem_byte(state, translated);
   return opcode;
@@ -188,7 +188,7 @@ uint8_t fetch_next_opcode(nes_state *state) {
 // Execute a JMP instruction
 void exec_JMP(nes_state *state) {
   uint16_t new_pc;
-  switch (state->current_opcode) {
+  switch (state->cpu->current_opcode) {
     // JMP
   case 0x4c:
     /*     Absolute addressing */
@@ -201,13 +201,13 @@ void exec_JMP(nes_state *state) {
     /*       2    PC     R  fetch low address byte, increment PC */
     /*       3    PC     R  copy low address byte to PCL, fetch high address */
     /*       byte to PCH */
-    switch(state->stall_cycles) {
+    switch(state->cpu->stall_cycles) {
     case 2:
       // Should fetch low address byte and inc pc, but we "fake" it
-      state->registers->PC += 1;
+      state->cpu->registers->PC += 1;
       break;
     case 1:
-      new_pc = read_mem_short(state, state->registers->PC - 1);
+      new_pc = read_mem_short(state, state->cpu->registers->PC - 1);
       set_pc(state, new_pc);
       break;
     }
@@ -223,20 +223,20 @@ void exec_JMP(nes_state *state) {
     /*       5  $0100,S  W  push PCL on stack, decrement S */
     /*       6    PC     R  copy low address byte to PCL, fetch high address */
     /*       byte to PCH */
-    switch(state->stall_cycles) {
+    switch(state->cpu->stall_cycles) {
     case 5:
-      state->registers->PC += 1;
+      state->cpu->registers->PC += 1;
       break;
     case 4: // Decrement SP here?
       break;
     case 3:
-      push(state, read_mem_byte(state, state->registers->PC));
+      push(state, read_mem_byte(state, state->cpu->registers->PC));
       break;
     case 2:
-      push(state, read_mem_byte(state, state->registers->PC+1));
+      push(state, read_mem_byte(state, state->cpu->registers->PC+1));
       break;
     case 1:
-      new_pc = read_mem_short(state, state->registers->PC - 1);
+      new_pc = read_mem_short(state, state->cpu->registers->PC - 1);
       set_pc(state, new_pc);
       break;
     }
@@ -275,7 +275,7 @@ void exec_LDX(nes_state *state) {
   /*     3    PC     R  fetch high byte of address, increment PC */
   /*     4  address  R  read from effective address */
   uint8_t operand;
-  switch (state->current_opcode) {
+  switch (state->cpu->current_opcode) {
     // IMMEDIATE
     /*     Immediate addressing */
 
@@ -284,11 +284,11 @@ void exec_LDX(nes_state *state) {
     /*       1    PC     R  fetch opcode, increment PC */
     /*       2    PC     R  fetch value, increment PC */
   case 0xa2: // LDX Immediate
-    switch(state->stall_cycles) {
+    switch(state->cpu->stall_cycles) {
     case 1:
-      operand = read_mem_byte(state, state->registers->PC);
-      state->registers->X = operand;
-      state->registers->PC += 1;
+      operand = read_mem_byte(state, state->cpu->registers->PC);
+      state->cpu->registers->X = operand;
+      state->cpu->registers->PC += 1;
       if (operand == 0) { set_zero_flag(state); }
       break;
     }
@@ -298,7 +298,7 @@ void exec_LDX(nes_state *state) {
 
 void exec_STX(nes_state *state) {
   uint8_t operand;
-  switch (state->current_opcode) {
+  switch (state->cpu->current_opcode) {
   case 0x86: // STX Zero page
 
     /*     Write instructions (STA, STX, STY, SAX) */
@@ -308,13 +308,13 @@ void exec_STX(nes_state *state) {
     /*       1    PC     R  fetch opcode, increment PC */
     /*       2    PC     R  fetch address, increment PC */
     /*       3  address  W  write register to effective address */
-    switch(state->stall_cycles) {
+    switch(state->cpu->stall_cycles) {
     case 2:
-      state->registers->PC += 1;
+      state->cpu->registers->PC += 1;
       break;
     case 1:
-      operand = read_mem_byte(state, state->registers->PC-2);
-      state->memory[operand] = state->registers->X;
+      operand = read_mem_byte(state, state->cpu->registers->PC-2);
+      state->memory[operand] = state->cpu->registers->X;
       break;
     }
   }
@@ -322,10 +322,10 @@ void exec_STX(nes_state *state) {
 
 
 void exec_FLAGS(nes_state *state) {
-  switch(state->current_opcode) {
+  switch(state->cpu->current_opcode) {
     // SEC - Set Carry Flag
   case 0x38:
-    switch(state->stall_cycles) {
+    switch(state->cpu->stall_cycles) {
     case 1:
       set_carry_flag(state);
       break;
@@ -371,14 +371,14 @@ void exec_BRANCH(nes_state *state) {
   /*          + If branch is taken, this cycle will be executed. */
   /*          ! If branch occurs to different page, this cycle will be */
   /*            executed. */
-  switch(state->current_opcode) {
+  switch(state->cpu->current_opcode) {
     // BCS - Branch on Carry Set
   case 0xB0:
-    switch(state->stall_cycles) {
+    switch(state->cpu->stall_cycles) {
       // Still not sure how to handle all of this branching stuff with extra cycles.
     case 1:
-      operand = read_mem_byte(state, state->registers->PC);
-      state->registers->PC++;
+      operand = read_mem_byte(state, state->cpu->registers->PC);
+      state->cpu->registers->PC++;
       break;
 
     }
@@ -388,7 +388,7 @@ void exec_BRANCH(nes_state *state) {
 
 void exec_opcode(nes_state *state) {
   // Terrible, but good enough for now.
-  switch(state->current_opcode) {
+  switch(state->cpu->current_opcode) {
   case 0x38:
     exec_FLAGS(state);
     break;
@@ -405,7 +405,7 @@ void exec_opcode(nes_state *state) {
     exec_STX(state);
     break;
   default:
-    printf("Opcode 0x%02x not implemented.\n", state->current_opcode);
+    printf("Opcode 0x%02x not implemented.\n", state->cpu->current_opcode);
 
   }
 }
@@ -414,7 +414,7 @@ int cycles_for_opcode(nes_state *state) { //uint8_t opcode) {
   // In general an instruction takes 2 cycles. The first cycle is already handled, so default is 1.
   uint8_t cycles = 1;
   // TODO - Replace with table/array?
-  switch(state->current_opcode) {
+  switch(state->cpu->current_opcode) {
     // JSR
   case 0x20:
     cycles = 5;
@@ -447,21 +447,21 @@ int cycles_for_opcode(nes_state *state) { //uint8_t opcode) {
 }
 
 void cpu_step(nes_state *state) {
-  if (state->stall_cycles <= 0) {
+  if (state->cpu->stall_cycles <= 0) {
     // Store the program counter pointing at the current opcode
-    state->current_opcode_PC = state->registers->PC;
+    state->cpu->current_opcode_PC = state->cpu->registers->PC;
     // Fetch the instruction at $PC
-    state->current_opcode = fetch_next_opcode(state);
+    state->cpu->current_opcode = fetch_next_opcode(state);
     // Get the amount of cycles for the instruction
-    state->stall_cycles = cycles_for_opcode(state);
+    state->cpu->stall_cycles = cycles_for_opcode(state);
     // Increment PC
-    state->registers->PC += 1;
+    state->cpu->registers->PC += 1;
   }
   else {
     // Execute the instruction
     //    printf("Executing opcode: 0x%02x\n", state->current_opcode);
     exec_opcode(state);
-    state->stall_cycles -= 1;
+    state->cpu->stall_cycles -= 1;
   }
 }
 

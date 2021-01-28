@@ -24,86 +24,86 @@ FILE *logfile;
 
 
 void disass(nes_state *state, char *output) {
-  switch(state->current_opcode) {
+  switch(state->cpu->current_opcode) {
     // JSR
   case 0x20:
     sprintf(output, "%04X  %02X %02X %02X  JSR $%02X%02X",
-            state->current_opcode_PC,
-            state->current_opcode,
-            read_mem_byte(state, state->current_opcode_PC+1),
-            read_mem_byte(state, state->current_opcode_PC+2),
-            read_mem_byte(state, state->current_opcode_PC+2),
-            read_mem_byte(state, state->current_opcode_PC+1));
+            state->cpu->current_opcode_PC,
+            state->cpu->current_opcode,
+            read_mem_byte(state, state->cpu->current_opcode_PC+1),
+            read_mem_byte(state, state->cpu->current_opcode_PC+2),
+            read_mem_byte(state, state->cpu->current_opcode_PC+2),
+            read_mem_byte(state, state->cpu->current_opcode_PC+1));
     break;
     // JMP
   case 0x4c:
     sprintf(output, "%04X  %02X %02X %02X  JMP $%02X%02X",
-            state->current_opcode_PC,
-            state->current_opcode,
-            read_mem_byte(state, state->current_opcode_PC+1),
-            read_mem_byte(state, state->current_opcode_PC+2),
-            read_mem_byte(state, state->current_opcode_PC+2),
-            read_mem_byte(state, state->current_opcode_PC+1));
+            state->cpu->current_opcode_PC,
+            state->cpu->current_opcode,
+            read_mem_byte(state, state->cpu->current_opcode_PC+1),
+            read_mem_byte(state, state->cpu->current_opcode_PC+2),
+            read_mem_byte(state, state->cpu->current_opcode_PC+2),
+            read_mem_byte(state, state->cpu->current_opcode_PC+1));
     break;
     // LDX immediate
   case 0xa2:
     sprintf(output, "%04X  %02X %02X     LDX #$%02X",
-            state->current_opcode_PC,
-            state->current_opcode,
-            read_mem_byte(state, state->current_opcode_PC+1),
-            read_mem_byte(state, state->current_opcode_PC+1));
+            state->cpu->current_opcode_PC,
+            state->cpu->current_opcode,
+            read_mem_byte(state, state->cpu->current_opcode_PC+1),
+            read_mem_byte(state, state->cpu->current_opcode_PC+1));
     break;
     //STX Zero Page
   case 0x86:
     sprintf(output, "%04X  %02X %02X     STX $%02X = %02X",
-            state->current_opcode_PC,
-            state->current_opcode,
-            read_mem_byte(state, state->current_opcode_PC+1),
-            read_mem_byte(state, state->current_opcode_PC+1),
-            read_mem_byte(state, read_mem_byte(state, state->current_opcode_PC+1)));
+            state->cpu->current_opcode_PC,
+            state->cpu->current_opcode,
+            read_mem_byte(state, state->cpu->current_opcode_PC+1),
+            read_mem_byte(state, state->cpu->current_opcode_PC+1),
+            read_mem_byte(state, read_mem_byte(state, state->cpu->current_opcode_PC+1)));
     break;
     // NOP
   case 0xEA:
     sprintf(output, "%04X  %02X        NOP",
-            state->current_opcode_PC,
-            state->current_opcode);
+            state->cpu->current_opcode_PC,
+            state->cpu->current_opcode);
     break;
     // SEC
   case 0x38:
     sprintf(output, "%04X  %02X        SEC",
-            state->current_opcode_PC,
-            state->current_opcode);
+            state->cpu->current_opcode_PC,
+            state->cpu->current_opcode);
     break;
     // SEI
   case 0x78:
     sprintf(output, "%04X  %02X        SEI",
-            state->current_opcode_PC,
-            state->current_opcode);
+            state->cpu->current_opcode_PC,
+            state->cpu->current_opcode);
     break;
     // SED
   case 0xF8:
     sprintf(output, "%04X  %02X        SED",
-            state->current_opcode_PC,
-            state->current_opcode);
+            state->cpu->current_opcode_PC,
+            state->cpu->current_opcode);
     break;
     // PHP
   case 0x08:
     sprintf(output, "%04X  %02X        PHP",
-            state->current_opcode_PC,
-            state->current_opcode);
+            state->cpu->current_opcode_PC,
+            state->cpu->current_opcode);
     break;
     // PLA
   case 0x68:
     sprintf(output, "%04X  %02X        PLA",
-            state->current_opcode_PC,
-            state->current_opcode);
+            state->cpu->current_opcode_PC,
+            state->cpu->current_opcode);
     break;
 
     // CLC
   case 0x18:
     sprintf(output, "%04X  %02X        CLC",
-            state->current_opcode_PC,
-            state->current_opcode);
+            state->cpu->current_opcode_PC,
+            state->cpu->current_opcode);
     break;
   default:
     sprintf(output, "not implemented yet");
@@ -129,14 +129,14 @@ void print_log(nes_state *state) {
   // Fill out missing parts later
   printf("%-48sA:%02X X:%02X Y:%02X P:%02X SP:%02X PPU:%3u,%3u CYC:%u\n",
          part1,
-          state->registers->ACC,
-          state->registers->X,
-          state->registers->Y,
-          state->registers->SR,
-          state->registers->SP,
-          state->ppu_frame,
+         state->cpu->registers->ACC,
+         state->cpu->registers->X,
+         state->cpu->registers->Y,
+         state->cpu->registers->SR,
+         state->cpu->registers->SP,
+         state->ppu_frame,
           state->ppu_cycle,
-          (int32_t) state->master_clock);
+         (int32_t) state->cpu->cpu_cycle);
 
 }
 
@@ -148,14 +148,14 @@ void logger_log(nes_state *state)
   // Fill out missing parts later
   fprintf(logfile, "%-48sA:%02X X:%02X Y:%02X P:%02X SP:%02X PPU:%3u,%3u CYC:%u\n",
           part1,
-          state->registers->ACC,
-          state->registers->X,
-          state->registers->Y,
-          state->registers->SR,
-          state->registers->SP,
+          state->cpu->registers->ACC,
+          state->cpu->registers->X,
+          state->cpu->registers->Y,
+          state->cpu->registers->SR,
+          state->cpu->registers->SP,
           state->ppu_frame,
           state->ppu_cycle,
-          (int32_t) state->master_clock);
+          (int32_t) state->cpu->cpu_cycle);
 
 }
 void logger_stop_logger()
