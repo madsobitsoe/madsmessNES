@@ -2,12 +2,11 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <stdlib.h>
-#include <fcntl.h>
-#include <unistd.h>
 
 #include "cpu.h"
-#include "rom.h"
-
+#include "nes.h"
+/* #include "rom.h" */
+#include "logger.h"
 
 // gdb-like step interface
 void ndb(nes_state *state) {
@@ -15,31 +14,31 @@ void ndb(nes_state *state) {
   print_state(state);
 
   /* uint8_t ni; */
-  uint16_t translated = translate_memory_location(state->current_opcode_PC);
-  printf("Trans: 0x%04x\n", translated);
+  /* uint16_t translated = translate_memory_location(state->current_opcode_PC); */
+  /* printf("Trans: 0x%04x\n", translated); */
   // Print the next 20 bytes (instructions) after PC
-  if (translated <= 0x7ff) {
-    printf("reading from RAM\n");
-    int counter = 0;
-    while (counter < 20) {
-      int incr_by = decode_instruction(state->memory[translated+counter - 0x8000], translated+counter);
-      counter += incr_by;
-    }
-  }
-  else
-    {
-      printf("reading from ROM\n");
-      int counter = 0;
-      uint16_t offset = translated - 0xc000;
-      printf("Trying to read from 0x%04x.\n", offset);
-      while (counter < 20) {
-        int incr_by = decode_instruction(state->rom[offset+counter], translated+counter);
-        counter += incr_by;
-      }
-    }
-  printf("\n");
+  /* if (translated <= 0x7ff) { */
+  /*   printf("reading from RAM\n"); */
+  /*   int counter = 0; */
+  /*   while (counter < 20) { */
+  /*     int incr_by = decode_instruction(state->memory[translated+counter - 0x8000], translated+counter); */
+  /*     counter += incr_by; */
+  /*   } */
+  /* } */
+  /* else */
+  /*   { */
+  /*     printf("reading from ROM\n"); */
+  /*     int counter = 0; */
+  /*     uint16_t offset = translated - 0xc000; */
+  /*     printf("Trying to read from 0x%04x.\n", offset); */
+  /*     while (counter < 20) { */
+  /*       int incr_by = decode_instruction(state->rom[offset+counter], translated+counter); */
+  /*       counter += incr_by; */
+  /*     } */
+  /*   } */
+  /* printf("\n"); */
 
-
+  print_log(state);
 
   // Get input from user
   printf("s: step, q: quit\n");
@@ -90,16 +89,21 @@ int main (int argc, char **argv) {
     fprintf(stderr, "Usage: %s (<filename>|-)\n", argv[0]);
     return EXIT_FAILURE;
   }
-  init_table();
-  /*   char* filename = argv[1]; */
+
+  /* // Table for "pretty"-printing instructions */
+  /* init_table(); */
+  // Set up logger
+  logger_init_logger("testlog.log");
+
+
   unsigned char *rombuf;
   int load_rom_status = load_rom(argv[1], &rombuf);
   if (load_rom_status != 0) {
     return load_rom_status;
   };
   printf("Rom successfully loaded...\n");
-  printf("Header:\n");
-  print_header(rombuf);
+  /* printf("Header:\n"); */
+  /* print_header(rombuf); */
 
 
   printf("Initializing state... ");
@@ -109,14 +113,17 @@ int main (int argc, char **argv) {
   //+16 to skip nes header
   attach_rom(state, rombuf+16);
   printf(" Done!\n");
+  reset(state);
 
-  printf("Trying to read the initial value for PC with read_mem..\n");
-  uint16_t reset_vector_value = read_mem_short(state, 0xfffc);
-  printf("Value: 0x%x\n", reset_vector_value);
-  set_pc(state, reset_vector_value);
+  /* printf("Trying to read the initial value for PC with read_mem..\n"); */
+  /* uint16_t reset_vector_value = read_mem_short(state, 0xfffc); */
+  /* printf("Value: 0x%x\n", reset_vector_value); */
+  /* set_pc(state, reset_vector_value); */
   set_pc(state, 0xc000);
   printf("Entering debug loop..\n");
   ndb(state);
+
+  logger_stop_logger();
 
   destroy_state(state);
   free(rombuf);

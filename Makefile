@@ -4,20 +4,33 @@ CFLAGS=-I$(IDIR)
 SRCDIR=src
 ODIR=obj
 
-LIBS=
+all: emu
 
-_DEPS = cpu.h rom.h
-DEPS = $(patsubst %,$(IDIR)/%,$(_DEPS))
+# _DEPS = definitions.h nes.h cpu.h logger.h
+# DEPS = $(patsubst %,$(IDIR)/%,$(_DEPS))
 
-_OBJ = cpu.o rom.o main.o
-OBJ = $(patsubst %,$(ODIR)/%,$(_OBJ))
+# _OBJ = nes.o logger.o main.o
+# OBJ = $(patsubst %,$(ODIR)/%,$(_OBJ))
 
 
-$(ODIR)/%.o: $(SRCDIR)/%.c $(DEPS)
-	$(CC) -c -o $@ $< $(CFLAGS)
+# $(ODIR)/%.o: $(SRCDIR)/%.c $(DEPS)
+# 	$(CC) -c -o $@ $< $(CFLAGS)
 
-emu: $(OBJ)
-	$(CC) -o $@ $^ $(CFLAGS) $(LIBS)
+
+# $(ODIR)/nes.o: $(SRCDIR)/cpu.c $(SRCDIR)/nes.c $(DEPS)
+# 	$(CC) -c -o $@ $< $(CFLAGS)
+
+# $(ODIR)/logger.o: $(SRCDIR)/logger.c $(DEPS)
+# 	$(CC) -c -o $@ $< $(CFLAGS)
+
+# $(ODIR)/main.o: $(SRCDIR)/main.c $(DEPS)
+# 	$(CC) -c -o $@ $< $(CFLAGS)
+
+# emu: $(OBJ)
+# 	$(CC) -o $@ $^ $(CFLAGS)
+
+emu: src/cpu.c src/nes.c src/logger.c src/main.c
+	gcc -Wall -Wextra -o emu src/cpu.c src/nes.c src/logger.c src/main.c -Iinclude
 
 .PHONY: clean
 

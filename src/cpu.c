@@ -1,15 +1,10 @@
 #include <stdio.h>
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <stdlib.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <stdbool.h>
 #include "cpu.h"
+#include "logger.h"
 
 
-
-static void init_registers(registers *regs) {
+void init_registers(registers *regs) {
   regs->ACC = 0;
   regs->X = 0;
   regs->Y = 0;
@@ -46,34 +41,14 @@ void print_regs(nes_state *state) {
   print_status_reg(state);
   printf("\n");
 }
-void print_state(nes_state *state) {
-  printf("Cycle:  %lld\n", state->master_clock);
-  printf("Stall cycles: %d\n", state->stall_cycles);
-  print_regs(state);
-}
 
 
-nes_state* init_state() {
-  // Create the state and allocate memory
-  nes_state *state = malloc(sizeof(nes_state));
-  state->master_clock = 0;
-  // Create the registers and allocate memory
-  registers *regs = malloc(sizeof(registers));
-  init_registers(regs);
-  state->registers = regs;
-  // Set up memory (malloc)
-  state->memory = malloc(2048); // 2kb ram (at least for now)
-  state->running = true;
-  state->stall_cycles = 0;
-  state->current_function_index = -1;
-  return state;
-}
-void attach_rom(nes_state *state, unsigned char *rommem) {
-  state->rom = rommem;
-}
+
 
 void set_pc(nes_state *state, unsigned short pc) {
   state->registers->PC = pc;
+  state->current_opcode_PC = pc;
+  state->current_opcode = read_mem_byte(state, pc);
 }
 
 void set_negative_flag(nes_state *state) {
@@ -139,9 +114,9 @@ uint16_t translate_memory_location(unsigned short memloc) {
 
 
 uint16_t read_mem_short(nes_state *state, uint16_t memloc) {
-  printf("Translating memory location 0x%x.\n", memloc);
+  /* printf("Translating memory location 0x%x.\n", memloc); */
   uint16_t translated = translate_memory_location(memloc);
-  printf("Translated memory location 0x%x.\n", translated);
+  /* printf("Translated memory location 0x%x.\n", translated); */
 
   uint16_t value = 0;
   if (translated >= 0x0 && translated <= 0x7ff) {
@@ -162,14 +137,9 @@ uint8_t read_mem_byte(nes_state *state, uint16_t memloc) {
 }
 
 
-// Free up the pointers used by a state
-void destroy_state(nes_state *state) {
-  free(state->registers);
-  free(state->memory);
-  free(state);
-}
 
 uint8_t fetch_next_opcode(nes_state *state) {
+  printf("Fetching next opcode!");
   uint16_t translated = translate_memory_location(state->registers->PC);
 
   uint8_t opcode = read_mem_byte(state, translated);
@@ -245,7 +215,6 @@ void exec_LDX(nes_state *state) {
   case 0xa2: // LDX Immediate
     switch(state->stall_cycles) {
     case 1:
-      // Should fetch low address byte and inc pc, but we "fake" it
       operand = read_mem_byte(state, state->registers->PC);
       state->registers->X = operand;
       state->registers->PC += 1;
@@ -318,7 +287,8 @@ int cycles_for_opcode(uint8_t opcode) {
 }
 
 void cpu_step(nes_state *state) {
-  if (state->stall_cycles == 0) {
+  if (state->stall_cycles <= 0) {
+    // Store the program counter pointing at the current opcode
     state->current_opcode_PC = state->registers->PC;
     // Fetch the instruction at $PC
     state->current_opcode = fetch_next_opcode(state);
@@ -329,20 +299,19 @@ void cpu_step(nes_state *state) {
   }
   else {
     // Execute the instruction
-    printf("Executing opcode: 0x%02x\n", state->current_opcode);
+    //    printf("Executing opcode: 0x%02x\n", state->current_opcode);
     exec_opcode(state);
     state->stall_cycles -= 1;
   }
 }
-/*  else { state->stall_cycles -= 1; } */
-/* } */
 
-void step(nes_state *state) {
-  // Update the master clock by one
-  state->master_clock += 1;
-  // Step one cycle in CPU
-  cpu_step(state);
-  // Step one cycle in PPU
-  // Step one cycle in APU
 
+void ppu_step(nes_state *state) {
+  for (int i = 0; i < 3; i++) {
+    state->ppu_cycle++;
+    if (state->ppu_cycle == 333) {
+      state->ppu_cycle = 0;
+      state->ppu_frame++;
+    }
+  }
 }

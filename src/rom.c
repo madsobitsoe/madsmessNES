@@ -1,9 +1,7 @@
 #include <stdio.h>
 #include <sys/types.h>
-#include <sys/stat.h>
 #include <stdlib.h>
-#include <fcntl.h>
-#include <unistd.h>
+
 #include "rom.h"
 
 
@@ -53,19 +51,12 @@ void print_instruction_entry(instruction_entry *entry, int addr, uint8_t opcode)
          opcode);
 }
 
-/* void print_assembly() { */
-
-/* } */
 
 
 // Parses a header of the iNES format (https://wiki.nesdev.com/w/index.php/INES#iNES_file_format)
 // returns the offset where the "actual rom" begins.
 int print_header(unsigned char* rombuf) {
   /* // Header is 16 bytes */
-  /* char *header[16]; */
-  /* for (int i = 0; i < 16; i++) { */
-  /*   header[i] = rombuf[i]; */
-  /* } */
   /* The format of the header is as follows: */
   /*   0-3: Constant $4E $45 $53 $1A ("NES" followed by MS-DOS end-of-file) */
   /*   4: Size of PRG ROM in 16 KB units */
