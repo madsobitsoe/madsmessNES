@@ -611,6 +611,7 @@ void add_instruction_to_queue(nes_state *state) {
   case 0xEA:
     add_action_to_queue(state, 0);
     break;
+    // BCS
   case 0xB0:
     add_action_to_queue(state, 9);
     if (is_carry_flag_set(state)) {
@@ -618,6 +619,13 @@ void add_instruction_to_queue(nes_state *state) {
     }
     /* else { add_action_to_queue(state, 11); } */
     // TODO : Add extra action for crossing page boundary
+    break;
+    // BCC
+  case 0x90:
+    add_action_to_queue(state, 9);
+    if (!is_carry_flag_set(state)) {
+      add_action_to_queue(state, 10);
+    }
     break;
   }
 

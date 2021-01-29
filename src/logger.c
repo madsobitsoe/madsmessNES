@@ -71,7 +71,15 @@ void disass(nes_state *state, char *output) {
             read_mem_byte(state, state->cpu->current_opcode_PC+1),
             state->cpu->current_opcode_PC + read_mem_byte(state, state->cpu->current_opcode_PC+1) + 2);
     break;
-            // NOP
+    // BCC
+  case 0x90:
+    sprintf(output, "%04X  %02X %02X     BCC $%04X",
+            state->cpu->current_opcode_PC,
+            state->cpu->current_opcode,
+            read_mem_byte(state, state->cpu->current_opcode_PC+1),
+            state->cpu->current_opcode_PC + read_mem_byte(state, state->cpu->current_opcode_PC+1) + 2);
+    break;
+    // NOP
   case 0xEA:
     sprintf(output, "%04X  %02X        NOP",
             state->cpu->current_opcode_PC,
