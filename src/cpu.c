@@ -594,9 +594,11 @@ void execute_next_action(nes_state *state) {
     state->cpu->registers->PC &= 0x00FF;
     state->cpu->registers->PC |= ((uint8_t) read_mem_byte(state, state->cpu->registers->SP + 0x100) << 8);
     break;
-    // Pull ACC from stack (In PLA)
+    // Pull ACC from stack (In PLA) and affect flags
   case 17:
     state->cpu->registers->ACC = read_mem_byte(state, state->cpu->registers->SP + 0x100);
+    if (state->cpu->registers->ACC == 0) { set_zero_flag(state); } else { clear_zero_flag(state); }
+    if (state->cpu->registers->ACC > 0x7f) { set_negative_flag(state); } else { clear_negative_flag(state); }
     break;
     // Pull Status register from stack (In PLP)
   case 19:
@@ -604,12 +606,21 @@ void execute_next_action(nes_state *state) {
     break;
     // Push Status register to stack, decrement S
   case 20:
-    printf("HIT!\n");
     /* See this note about the B flag for explanation of the OR */
 /* https://wiki.nesdev.com/w/index.php/Status_flags#The_B_flag */
     state->memory[state->cpu->registers->SP + 0x100] = 48 | state->cpu->registers->SR;
     state->cpu->registers->SP--;
     break;
+
+    // And immediate
+  case 21:
+    {
+      uint8_t res = state->cpu->registers->ACC & (read_mem_byte(state, state->cpu->registers->PC));
+      if (res == 0) { set_zero_flag(state); } else { clear_zero_flag(state); }
+      if (res > 0x7F) { set_negative_flag(state); } else { clear_negative_flag(state); }
+      state->cpu->registers->ACC = res;
+    }
+      break;
       // clear carry flag
   case 90:
     clear_carry_flag(state);
@@ -725,6 +736,10 @@ void add_instruction_to_queue(nes_state *state) {
     add_action_to_queue(state, 19);
     break;
 
+    // AND immediate
+  case 0x29:
+    add_action_to_queue(state, 21);
+    break;
     // JMP immediate
   case 0x4C:
     add_action_to_queue(state, 2);
