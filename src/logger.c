@@ -69,7 +69,7 @@ void disass(nes_state *state, char *output) {
             state->cpu->current_opcode_PC,
             state->cpu->current_opcode,
             read_mem_byte(state, state->cpu->current_opcode_PC+1),
-            state->cpu->registers->PC + read_mem_byte(state, state->cpu->current_opcode_PC+1) + 2);
+            state->cpu->current_opcode_PC + read_mem_byte(state, state->cpu->current_opcode_PC+1) + 2);
     break;
             // NOP
   case 0xEA:

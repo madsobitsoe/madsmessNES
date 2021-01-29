@@ -91,6 +91,37 @@ void set_carry_flag(nes_state *state) {
   state->cpu->registers->SR |= 1;
 }
 
+void clear_negative_flag(nes_state *state) {
+  state->cpu->registers->SR &= 127;
+}
+
+void clear_overflow_flag(nes_state *state) {
+  state->cpu->registers->SR &= (255-64);
+}
+
+
+void clear_break_flag(nes_state *state) {
+  state->cpu->registers->SR &= (255-16);
+}
+
+
+void clear_decimal_flag(nes_state *state) {
+  state->cpu->registers->SR &= (255-8);
+}
+
+void clear_interrupt_flag(nes_state *state) {
+  state->cpu->registers->SR &= (255-4);
+}
+
+void clear_zero_flag(nes_state *state) {
+  state->cpu->registers->SR &= (255-2);
+}
+
+void clear_carry_flag(nes_state *state) {
+  state->cpu->registers->SR &= (255-1);
+}
+
+
 bool is_carry_flag_set(nes_state *state) {
   return ((state->cpu->registers->SR & 1) == 1);
 }
@@ -463,23 +494,23 @@ uint8_t read_mem_byte(nes_state *state, uint16_t memloc) {
 
 
 
-  void execute_next_action(nes_state *state) {
-    switch (state->cpu->action_queue[state->cpu->next_action]) {
+void execute_next_action(nes_state *state) {
+  switch (state->cpu->action_queue[state->cpu->next_action]) {
       // Dummy cycle, "do nothing"
-    case 0:
-      break;
+  case 0:
+    break;
       /* R fetch opcode, increment PC - first cycle in all instructions*/
-    case 1:
-      printf("Executing action 1!\n");
-      state->cpu->current_opcode = read_mem_byte(state, state->cpu->registers->PC);
-      state->cpu->registers->PC++;
-      break;
+  case 1:
+    printf("Executing action 1!\n");
+    state->cpu->current_opcode = read_mem_byte(state, state->cpu->registers->PC);
+    state->cpu->registers->PC++;
+    break;
       /* R  fetch low address byte, increment PC */
-    case 2:
-      printf("Executing action 2!\n");
-      state->cpu->low_addr_byte = read_mem_byte(state, state->cpu->registers->PC);
-      state->cpu->registers->PC++;
-      break;
+  case 2:
+    printf("Executing action 2!\n");
+    state->cpu->low_addr_byte = read_mem_byte(state, state->cpu->registers->PC);
+    state->cpu->registers->PC++;
+    break;
       /* R  copy low address byte to PCL, fetch high address byte to PCH */
   case 3:
     printf("Executing action 3!\n");
@@ -525,7 +556,10 @@ uint8_t read_mem_byte(nes_state *state, uint16_t memloc) {
     case 11:
       state->cpu->registers->PC++;
       break;
-
+      // clear carry flag
+  case 12:
+    clear_carry_flag(state);
+    break;
     }
 
   state->cpu->next_action++;
@@ -569,6 +603,10 @@ void add_instruction_to_queue(nes_state *state) {
   case 0x38:
     add_action_to_queue(state, 8);
     break;
+    // CLC - Clear Carry Flag
+  case 0x18:
+    add_action_to_queue(state, 12);
+    break;
     // NOP
   case 0xEA:
     add_action_to_queue(state, 0);
@@ -578,7 +616,7 @@ void add_instruction_to_queue(nes_state *state) {
     if (is_carry_flag_set(state)) {
       add_action_to_queue(state, 10);
     }
-    else { add_action_to_queue(state, 11); }
+    /* else { add_action_to_queue(state, 11); } */
     // TODO : Add extra action for crossing page boundary
     break;
   }
