@@ -600,9 +600,25 @@ void execute_next_action(nes_state *state) {
     if (state->cpu->registers->ACC == 0) { set_zero_flag(state); } else { clear_zero_flag(state); }
     if (state->cpu->registers->ACC > 0x7f) { set_negative_flag(state); } else { clear_negative_flag(state); }
     break;
+    // push ACC on stack, decrement S
+  case 18:
+    state->memory[state->cpu->registers->SP + 0x100] = state->cpu->registers->ACC;
+    state->cpu->registers->SP--;
+    break;
     // Pull Status register from stack (In PLP)
   case 19:
-    state->cpu->registers->SR = read_mem_byte(state, state->cpu->registers->SP + 0x100);
+    {
+      // Two instructions (PLP and RTI) pull a byte from the stack and set all the flags. They ignore bits 5 and 4.
+      uint8_t value = read_mem_byte(state, state->cpu->registers->SP + 0x100);
+      // Ignore bits 4 and 5
+      value &= 0xcf;
+      uint8_t cur_flags = state->cpu->registers->SR;
+      // Keey bits 4 and 5
+      cur_flags &= 0x30;
+      // Join!
+      cur_flags |= value;
+      state->cpu->registers->SR = cur_flags;
+    }
     break;
     // Push Status register to stack, decrement S
   case 20:
@@ -612,13 +628,51 @@ void execute_next_action(nes_state *state) {
     state->cpu->registers->SP--;
     break;
 
-    // And immediate
+    // And immediate, increment PC
   case 21:
     {
       uint8_t res = state->cpu->registers->ACC & (read_mem_byte(state, state->cpu->registers->PC));
       if (res == 0) { set_zero_flag(state); } else { clear_zero_flag(state); }
       if (res > 0x7F) { set_negative_flag(state); } else { clear_negative_flag(state); }
       state->cpu->registers->ACC = res;
+      state->cpu->registers->PC++;
+    }
+      break;
+      // CMP immediate
+  case 22:
+        {
+      int8_t res = ((int8_t) state->cpu->registers->ACC) - (int8_t) read_mem_byte(state, state->cpu->registers->PC);
+      /* http://www.6502.org/tutorials/6502opcodes.html#CMP */
+      /* Compare sets flags as if a subtraction had been carried out. */
+   /* If the value in the accumulator is equal or greater than the compared value, */
+      /* the Carry will be set.
+      /* The equal (Z) and negative (N) flags will be set based on equality or lack */
+      /* thereof and the sign (i.e. A>=$80) of the accumulator. */
+      if (res == 0) { set_zero_flag(state); } else { clear_zero_flag(state); }
+      if (res >= 0) { set_carry_flag(state); } else { clear_carry_flag(state); }
+      if (res < 0)  { set_negative_flag(state); } else { clear_negative_flag(state); }
+      state->cpu->registers->PC++;
+    }
+
+    break;
+    // ORA immediate, increment PC
+  case 23:
+    {
+      uint8_t res = state->cpu->registers->ACC | (read_mem_byte(state, state->cpu->registers->PC));
+      if (res == 0) { set_zero_flag(state); } else { clear_zero_flag(state); }
+      if (res > 0x7F) { set_negative_flag(state); } else { clear_negative_flag(state); }
+      state->cpu->registers->ACC = res;
+      state->cpu->registers->PC++;
+    }
+      break;
+    // EOR immediate, increment PC
+  case 24:
+    {
+      uint8_t res = state->cpu->registers->ACC ^ (read_mem_byte(state, state->cpu->registers->PC));
+      if (res == 0) { set_zero_flag(state); } else { clear_zero_flag(state); }
+      if (res > 0x7F) { set_negative_flag(state); } else { clear_negative_flag(state); }
+      state->cpu->registers->ACC = res;
+      state->cpu->registers->PC++;
     }
       break;
       // clear carry flag
@@ -700,6 +754,10 @@ void add_instruction_to_queue(nes_state *state) {
       /*   3  $0100,S  W  push register on stack, decrement S */
     add_action_to_queue(state, 20);
     break;
+    // ORA immediate
+  case 0x09:
+    add_action_to_queue(state, 23);
+    break;
     // BPL - Branch Result Plus
   case 0x10:
     add_action_to_queue(state, 9);
@@ -757,6 +815,18 @@ void add_instruction_to_queue(nes_state *state) {
   case 0x38:
     add_action_to_queue(state, 100);
     break;
+    // PHA - Push ACC to stack
+  case 0x48:
+ /* R  read next instruction byte (and throw it away) */
+    add_action_to_queue(state, 0);
+ /* W  push register on stack, decrement S */
+    add_action_to_queue(state, 18);
+    break;
+    // EOR immediate
+  case 0x49:
+    add_action_to_queue(state, 24);
+    break;
+
     // BVC - Branch Overflow clear
   case 0x50:
     add_action_to_queue(state, 9);
@@ -845,6 +915,14 @@ void add_instruction_to_queue(nes_state *state) {
     }
     // TODO : Add extra action for crossing page boundary
     break;
+    // CLV - Clear Overflow Flag
+  case 0xB8:
+    add_action_to_queue(state, 96);
+    break;
+    // CMP Acc immediate
+  case 0xC9:
+    add_action_to_queue(state, 22);
+    break;
     // BNE
   case 0xD0:
     add_action_to_queue(state, 9);
@@ -852,6 +930,10 @@ void add_instruction_to_queue(nes_state *state) {
       add_action_to_queue(state, 10);
     }
     // TODO : Add extra action for crossing page boundary
+    break;
+    // CLD - Clear Decimal Flag
+  case 0xD8:
+    add_action_to_queue(state, 93);
     break;
     // BEQ
   case 0xF0:

@@ -25,6 +25,14 @@ FILE *logfile;
 
 void disass(nes_state *state, char *output) {
   switch(state->cpu->current_opcode) {
+    // ORA immediate
+  case 0x09:
+    sprintf(output, "%04X  %02X %02X     ORA #$%02X",
+            state->cpu->current_opcode_PC,
+            state->cpu->current_opcode,
+            read_mem_byte(state, state->cpu->current_opcode_PC+1),
+            read_mem_byte(state, state->cpu->current_opcode_PC+1));
+    break;
     // JSR
   case 0x20:
     sprintf(output, "%04X  %02X %02X %02X  JSR $%02X%02X",
@@ -42,7 +50,7 @@ void disass(nes_state *state, char *output) {
             state->cpu->current_opcode,
             read_mem_byte(state, state->cpu->current_opcode_PC+1),
             read_mem_byte(state, state->cpu->current_opcode_PC+1),
-            state->cpu->registers->ACC);
+            read_mem_byte(state, read_mem_byte(state, state->cpu->current_opcode_PC+1)));
     break;
     // AND immediate
   case 0x29:
@@ -52,6 +60,16 @@ void disass(nes_state *state, char *output) {
             read_mem_byte(state, state->cpu->current_opcode_PC+1),
             read_mem_byte(state, state->cpu->current_opcode_PC+1));
     break;
+
+    // EOR immediate
+  case 0x49:
+    sprintf(output, "%04X  %02X %02X     EOR #$%02X",
+            state->cpu->current_opcode_PC,
+            state->cpu->current_opcode,
+            read_mem_byte(state, state->cpu->current_opcode_PC+1),
+            read_mem_byte(state, state->cpu->current_opcode_PC+1));
+    break;
+
 
     // JMP
   case 0x4c:
@@ -74,6 +92,14 @@ void disass(nes_state *state, char *output) {
     // LDA immediate
   case 0xa9:
     sprintf(output, "%04X  %02X %02X     LDA #$%02X",
+            state->cpu->current_opcode_PC,
+            state->cpu->current_opcode,
+            read_mem_byte(state, state->cpu->current_opcode_PC+1),
+            read_mem_byte(state, state->cpu->current_opcode_PC+1));
+    break;
+    // CMP immediate
+  case 0xC9:
+    sprintf(output, "%04X  %02X %02X     CMP #$%02X",
             state->cpu->current_opcode_PC,
             state->cpu->current_opcode,
             read_mem_byte(state, state->cpu->current_opcode_PC+1),
@@ -214,8 +240,34 @@ void disass(nes_state *state, char *output) {
             state->cpu->current_opcode_PC,
             state->cpu->current_opcode);
     break;
+    // CLD
+  case 0xD8:
+    sprintf(output, "%04X  %02X        CLD",
+            state->cpu->current_opcode_PC,
+            state->cpu->current_opcode);
+    break;
+    // PLP
+  case 0x28:
+    sprintf(output, "%04X  %02X        PLP",
+            state->cpu->current_opcode_PC,
+            state->cpu->current_opcode);
+    break;
+    // PHA
+  case 0x48:
+    sprintf(output, "%04X  %02X        PHA",
+            state->cpu->current_opcode_PC,
+            state->cpu->current_opcode);
+    break;
+    // CLV
+  case 0xB8:
+    sprintf(output, "%04X  %02X        CLV",
+            state->cpu->current_opcode_PC,
+            state->cpu->current_opcode);
+    break;
   default:
-    sprintf(output, "not implemented yet");
+    sprintf(output, "%04X  %02X not implemented yet",
+            state->cpu->current_opcode_PC,
+            state->cpu->current_opcode);
   }
 }
 
