@@ -501,33 +501,31 @@ void execute_next_action(nes_state *state) {
     break;
       /* R fetch opcode, increment PC - first cycle in all instructions*/
   case 1:
-    printf("Executing action 1!\n");
     state->cpu->current_opcode = read_mem_byte(state, state->cpu->registers->PC);
     state->cpu->registers->PC++;
     break;
       /* R  fetch low address byte, increment PC */
   case 2:
-    printf("Executing action 2!\n");
     state->cpu->low_addr_byte = read_mem_byte(state, state->cpu->registers->PC);
     state->cpu->registers->PC++;
     break;
       /* R  copy low address byte to PCL, fetch high address byte to PCH */
   case 3:
-    printf("Executing action 3!\n");
     // Read the high address first to avoid overwriting PC (having to store it)
     state->cpu->high_addr_byte = read_mem_byte(state, state->cpu->registers->PC);
     state->cpu->registers->PC =  ((uint16_t) state->cpu->low_addr_byte | (state->cpu->high_addr_byte << 8));
     break;
-    // fetch value, save to X, increment PC, affect flag
+    // fetch value, save to destination, increment PC, affect N and Z flags
   case 4:
-    printf("Executing action 4!\n");
     *(state->cpu->destination_reg) = read_mem_byte(state, state->cpu->registers->PC);
     state->cpu->registers->PC++;
     if (*state->cpu->destination_reg == 0) { set_zero_flag(state); }
+    else { clear_zero_flag(state);}
+    if (*state->cpu->destination_reg >= 0x80) { set_negative_flag(state); }
+    else { clear_negative_flag(state); }
     break;
     // W  write register to effective address - zeropage
   case 5:
-    printf("Executing action 5!\n");
     state->memory[state->cpu->low_addr_byte] = *(state->cpu->source_reg);
     break;
     // W  push PCH on stack, decrement S
@@ -560,6 +558,102 @@ void execute_next_action(nes_state *state) {
   case 12:
     clear_carry_flag(state);
     break;
+    // BIT sets the Z flag as though the value in the address tested were ANDed with the accumulator.
+    // The N and V flags are set to match bits 7 and 6 respectively in the value stored at the tested address.
+  case 13:
+    {
+      uint8_t value = read_mem_byte(state, state->cpu->low_addr_byte);
+      if ((value & state->cpu->registers->ACC) == 0) { set_zero_flag(state); }
+    else { clear_zero_flag(state); }
+    if ((value & 128) == 128) { set_negative_flag(state); } else {clear_negative_flag(state); }
+    if ((value & 64) == 64) { set_overflow_flag(state); } else {clear_overflow_flag(state); }
+    }
+    break;
+    // Increment S (stack pointer)
+  case 14:
+    state->cpu->registers->SP++;
+    break;
+    // pull PCL from stack, increment S
+  case 15:
+    state->cpu->registers->PC &= 0xFF00;
+    state->cpu->registers->PC |= (uint8_t) read_mem_byte(state, state->cpu->registers->SP + 0x100);
+    state->cpu->registers->SP++;
+    break;
+    // pull PCH from stack
+  case 16:
+    state->cpu->registers->PC &= 0x00FF;
+    state->cpu->registers->PC |= ((uint8_t) read_mem_byte(state, state->cpu->registers->SP + 0x100) << 8);
+    break;
+    // Pull ACC from stack (In PLA)
+  case 17:
+    state->cpu->registers->ACC = read_mem_byte(state, state->cpu->registers->SP + 0x100 - 1);
+    break;
+    // Pull Status register from stack (In PLP)
+  case 19:
+    state->cpu->registers->SR = read_mem_byte(state, state->cpu->registers->SP + 0x100);
+    break;
+    // Push Status register to stack, decrement S
+  case 20:
+    state->memory[state->cpu->registers->SP] = state->cpu->registers->SR;
+    state->cpu->registers->SP--;
+    break;
+      // clear carry flag
+  case 90:
+    clear_carry_flag(state);
+    break;
+      // clear zero flag
+  case 91:
+    clear_zero_flag(state);
+    break;
+      // clear interrupt flag
+  case 92:
+    clear_interrupt_flag(state);
+    break;
+      // clear decimal flag
+  case 93:
+    clear_decimal_flag(state);
+    break;
+      // clear break flag
+  case 94:
+    clear_break_flag(state);
+    break;
+      // clear overflow flag
+  case 96:
+    clear_overflow_flag(state);
+    break;
+      // clear negative flag
+  case 97:
+    clear_negative_flag(state);
+    break;
+      // set carry flag
+  case 100:
+    set_carry_flag(state);
+    break;
+      // set zero flag
+  case 101:
+    set_zero_flag(state);
+    break;
+      // set interrupt flag
+  case 102:
+    set_interrupt_flag(state);
+    break;
+      // set decimal flag
+  case 103:
+    set_decimal_flag(state);
+    break;
+      // set break flag
+  case 104:
+    set_break_flag(state);
+    break;
+      // set overflow flag
+  case 106:
+    set_overflow_flag(state);
+    break;
+      // set negative flag
+  case 107:
+    set_negative_flag(state);
+    break;
+
     }
 
   state->cpu->next_action++;
@@ -575,6 +669,24 @@ void add_action_to_queue(nes_state *state, uint8_t action) {
 void add_instruction_to_queue(nes_state *state) {
   add_action_to_queue(state, 1);
   switch (read_mem_byte(state, state->cpu->registers->PC)) {
+    // PHP - Push Processor Status on stack
+  case 0x08:
+      /* 2    PC     R  read next instruction byte (and throw it away) */
+    add_action_to_queue(state, 0);
+      /*   3  $0100,S  W  push register on stack, decrement S */
+    add_action_to_queue(state, 20);
+    break;
+    // BPL - Branch Result Plus
+  case 0x10:
+    add_action_to_queue(state, 9);
+    if (!is_negative_flag_set(state)) {
+      add_action_to_queue(state, 10);
+    }
+    // TODO : Add extra action for crossing page boundary
+    break;
+  case 0x18:
+    add_action_to_queue(state, 12);
+    break;
     // JSR
   case 0x20:
     add_action_to_queue(state, 2);
@@ -583,29 +695,115 @@ void add_instruction_to_queue(nes_state *state) {
     add_action_to_queue(state, 7);
     add_action_to_queue(state, 3);
     break;
+    // BIT zero page
+  case 0x24:
+    // fetch address, increment PC
+    add_action_to_queue(state, 2);
+    // Read from effective address
+    add_action_to_queue(state, 13);
+    break;
+    // PLP - Pull Process Register (flags) from stack
+  case 0x28:
+/*         2    PC     R  read next instruction byte (and throw it away) */
+    add_action_to_queue(state, 0);
+/*         3  $0100,S  R  increment S */
+    add_action_to_queue(state, 14);
+/*         4  $0100,S  R  pull register from stack */
+    add_action_to_queue(state, 19);
+    break;
+
     // JMP immediate
   case 0x4C:
     add_action_to_queue(state, 2);
     add_action_to_queue(state, 3);
+    break;
+    // BMI - Branch Result Minus
+  case 0x30:
+    add_action_to_queue(state, 9);
+    if (!is_zero_flag_set(state) && is_negative_flag_set(state)) {
+      add_action_to_queue(state, 10);
+    }
+    // TODO : Add extra action for crossing page boundary
+    break;
+    // SEC - set carry flag
+  case 0x38:
+    add_action_to_queue(state, 100);
+    break;
+    // BVC - Branch Overflow clear
+  case 0x50:
+    add_action_to_queue(state, 9);
+    if (!is_overflow_flag_set(state)) {
+      add_action_to_queue(state, 10);
+    }
+    // TODO : Add extra action for crossing page boundary
+    break;
+    // RTS - Return from subroutine
+  case 0x60:
+       /*  #  address R/W description */
+       /* --- ------- --- ----------------------------------------------- */
+       /*  1    PC     R  fetch opcode, increment PC */
+       /*  2    PC     R  read next instruction byte (and throw it away) */
+    add_action_to_queue(state, 0); // doesn't read, just drones for one cycle
+       /*  3  $0100,S  R  increment S */
+    add_action_to_queue(state, 14);
+       /*  4  $0100,S  R  pull PCL from stack, increment S */
+    add_action_to_queue(state, 15);
+    /*  5  $0100,S  R  pull PCH from stack */
+    add_action_to_queue(state, 16);
+    /*  6    PC     R  increment PC */
+    add_action_to_queue(state, 11);
+    break;
+
+    // PLA - Pull Accumulator from stack
+  case 0x68:
+/*         2    PC     R  read next instruction byte (and throw it away) */
+    add_action_to_queue(state, 0);
+/*         3  $0100,S  R  increment S */
+    add_action_to_queue(state, 14);
+/*         4  $0100,S  R  pull register from stack */
+    add_action_to_queue(state, 17);
+    break;
+    // BVS - Branch Overflow Set
+  case 0x70:
+    add_action_to_queue(state, 9);
+    if (is_overflow_flag_set(state)) {
+      add_action_to_queue(state, 10);
+    }
+    // TODO : Add extra action for crossing page boundary
+    break;
+    // SEI - Set Interrupt Flag
+  case 0x78:
+    add_action_to_queue(state, 102);
+    break;
+    // STA Zeropage
+  case 0x85:
+    state->cpu->source_reg = &state->cpu->registers->ACC;
+    add_action_to_queue(state, 2);
+    add_action_to_queue(state, 5);
+    break;
+    // STX Zeropage
+  case 0x86:
+    state->cpu->source_reg = &state->cpu->registers->X;
+    add_action_to_queue(state, 2);
+    add_action_to_queue(state, 5);
+    break;
+    // BCC - Branch Carry Clear
+  case 0x90:
+    add_action_to_queue(state, 9);
+    if (!is_carry_flag_set(state)) {
+      add_action_to_queue(state, 10);
+    }
+    // TODO : Add extra action for crossing page boundary
     break;
     // LDX Immediate
   case 0xA2:
     state->cpu->destination_reg = &state->cpu->registers->X;
     add_action_to_queue(state, 4);
     break;
-    // STX immediate
-  case 0x86:
-    state->cpu->source_reg = &state->cpu->registers->X;
-    add_action_to_queue(state, 2);
-    add_action_to_queue(state, 5);
-    break;
-    // SEC - set carry flag
-  case 0x38:
-    add_action_to_queue(state, 8);
-    break;
-    // CLC - Clear Carry Flag
-  case 0x18:
-    add_action_to_queue(state, 12);
+    // LDX Immediate
+  case 0xA9:
+    state->cpu->destination_reg = &state->cpu->registers->ACC;
+    add_action_to_queue(state, 4);
     break;
     // NOP
   case 0xEA:
@@ -617,15 +815,27 @@ void add_instruction_to_queue(nes_state *state) {
     if (is_carry_flag_set(state)) {
       add_action_to_queue(state, 10);
     }
-    /* else { add_action_to_queue(state, 11); } */
     // TODO : Add extra action for crossing page boundary
     break;
-    // BCC
-  case 0x90:
+    // BNE
+  case 0xD0:
     add_action_to_queue(state, 9);
-    if (!is_carry_flag_set(state)) {
+    if (!is_zero_flag_set(state)) {
       add_action_to_queue(state, 10);
     }
+    // TODO : Add extra action for crossing page boundary
+    break;
+    // BEQ
+  case 0xF0:
+    add_action_to_queue(state, 9);
+    if (is_zero_flag_set(state)) {
+      add_action_to_queue(state, 10);
+    }
+    // TODO : Add extra action for crossing page boundary
+    break;
+    // SED - Set Decimal Flag
+  case 0xF8:
+    add_action_to_queue(state, 103);
     break;
   }
 
@@ -644,7 +854,7 @@ void cpu_step(nes_state *state) {
 void ppu_step(nes_state *state) {
   for (int i = 0; i < 3; i++) {
     state->ppu_cycle++;
-    if (state->ppu_cycle == 333) {
+    if (state->ppu_cycle > 340) {
       state->ppu_cycle = 0;
       state->ppu_frame++;
     }

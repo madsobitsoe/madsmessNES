@@ -35,6 +35,24 @@ void disass(nes_state *state, char *output) {
             read_mem_byte(state, state->cpu->current_opcode_PC+2),
             read_mem_byte(state, state->cpu->current_opcode_PC+1));
     break;
+    // BIT Zeropage
+  case 0x24:
+    sprintf(output, "%04X  %02X %02X     BIT $%02X = %02X",
+            state->cpu->current_opcode_PC,
+            state->cpu->current_opcode,
+            read_mem_byte(state, state->cpu->current_opcode_PC+1),
+            read_mem_byte(state, state->cpu->current_opcode_PC+1),
+            state->cpu->registers->ACC);
+    break;
+    // AND immediate
+  case 0x29:
+    sprintf(output, "%04X  %02X %02X     AND #$%02X",
+            state->cpu->current_opcode_PC,
+            state->cpu->current_opcode,
+            read_mem_byte(state, state->cpu->current_opcode_PC+1),
+            read_mem_byte(state, state->cpu->current_opcode_PC+1));
+    break;
+
     // JMP
   case 0x4c:
     sprintf(output, "%04X  %02X %02X %02X  JMP $%02X%02X",
@@ -53,6 +71,23 @@ void disass(nes_state *state, char *output) {
             read_mem_byte(state, state->cpu->current_opcode_PC+1),
             read_mem_byte(state, state->cpu->current_opcode_PC+1));
     break;
+    // LDA immediate
+  case 0xa9:
+    sprintf(output, "%04X  %02X %02X     LDA #$%02X",
+            state->cpu->current_opcode_PC,
+            state->cpu->current_opcode,
+            read_mem_byte(state, state->cpu->current_opcode_PC+1),
+            read_mem_byte(state, state->cpu->current_opcode_PC+1));
+    break;
+    //STA Zero Page
+  case 0x85:
+    sprintf(output, "%04X  %02X %02X     STA $%02X = %02X",
+            state->cpu->current_opcode_PC,
+            state->cpu->current_opcode,
+            read_mem_byte(state, state->cpu->current_opcode_PC+1),
+            read_mem_byte(state, state->cpu->current_opcode_PC+1),
+            read_mem_byte(state, read_mem_byte(state, state->cpu->current_opcode_PC+1)));
+    break;
     //STX Zero Page
   case 0x86:
     sprintf(output, "%04X  %02X %02X     STX $%02X = %02X",
@@ -62,10 +97,36 @@ void disass(nes_state *state, char *output) {
             read_mem_byte(state, state->cpu->current_opcode_PC+1),
             read_mem_byte(state, read_mem_byte(state, state->cpu->current_opcode_PC+1)));
     break;
+    // BPL
+  case 0x10:
+    sprintf(output, "%04X  %02X %02X     BPL $%04X",
+            state->cpu->current_opcode_PC,
+            state->cpu->current_opcode,
+            read_mem_byte(state, state->cpu->current_opcode_PC+1),
+            state->cpu->current_opcode_PC + read_mem_byte(state, state->cpu->current_opcode_PC+1) + 2);
+    break;
 
-    // BCS
-  case 0xB0:
-    sprintf(output, "%04X  %02X %02X     BCS $%04X",
+    // BMI
+  case 0x30:
+    sprintf(output, "%04X  %02X %02X     BMI $%04X",
+            state->cpu->current_opcode_PC,
+            state->cpu->current_opcode,
+            read_mem_byte(state, state->cpu->current_opcode_PC+1),
+            state->cpu->current_opcode_PC + read_mem_byte(state, state->cpu->current_opcode_PC+1) + 2);
+    break;
+
+    // BVC
+  case 0x50:
+    sprintf(output, "%04X  %02X %02X     BVC $%04X",
+            state->cpu->current_opcode_PC,
+            state->cpu->current_opcode,
+            read_mem_byte(state, state->cpu->current_opcode_PC+1),
+            state->cpu->current_opcode_PC + read_mem_byte(state, state->cpu->current_opcode_PC+1) + 2);
+    break;
+
+    // BVS
+  case 0x70:
+    sprintf(output, "%04X  %02X %02X     BVS $%04X",
             state->cpu->current_opcode_PC,
             state->cpu->current_opcode,
             read_mem_byte(state, state->cpu->current_opcode_PC+1),
@@ -74,6 +135,30 @@ void disass(nes_state *state, char *output) {
     // BCC
   case 0x90:
     sprintf(output, "%04X  %02X %02X     BCC $%04X",
+            state->cpu->current_opcode_PC,
+            state->cpu->current_opcode,
+            read_mem_byte(state, state->cpu->current_opcode_PC+1),
+            state->cpu->current_opcode_PC + read_mem_byte(state, state->cpu->current_opcode_PC+1) + 2);
+    break;
+    // BCS
+  case 0xB0:
+    sprintf(output, "%04X  %02X %02X     BCS $%04X",
+            state->cpu->current_opcode_PC,
+            state->cpu->current_opcode,
+            read_mem_byte(state, state->cpu->current_opcode_PC+1),
+            state->cpu->current_opcode_PC + read_mem_byte(state, state->cpu->current_opcode_PC+1) + 2);
+    break;
+    // BNE
+  case 0xD0:
+    sprintf(output, "%04X  %02X %02X     BNE $%04X",
+            state->cpu->current_opcode_PC,
+            state->cpu->current_opcode,
+            read_mem_byte(state, state->cpu->current_opcode_PC+1),
+            state->cpu->current_opcode_PC + read_mem_byte(state, state->cpu->current_opcode_PC+1) + 2);
+    break;
+    // BEQ
+  case 0xF0:
+    sprintf(output, "%04X  %02X %02X     BEQ $%04X",
             state->cpu->current_opcode_PC,
             state->cpu->current_opcode,
             read_mem_byte(state, state->cpu->current_opcode_PC+1),
@@ -109,6 +194,13 @@ void disass(nes_state *state, char *output) {
             state->cpu->current_opcode_PC,
             state->cpu->current_opcode);
     break;
+    // RTS - Return from subroutine
+  case 0x60:
+    sprintf(output, "%04X  %02X        RTS",
+            state->cpu->current_opcode_PC,
+            state->cpu->current_opcode);
+    break;
+
     // PLA
   case 0x68:
     sprintf(output, "%04X  %02X        PLA",
