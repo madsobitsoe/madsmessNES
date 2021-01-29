@@ -48,8 +48,18 @@ void print_stack(nes_state *state) {
   // stack pointer should be offset by 0x100
   // The stack grows downwards, so SP is initialized to 0xFF
   int offset = 0x100;
+  int end = state->cpu->registers->SP+5 < 0xFF ? state->cpu->registers->SP+5 : 0xFF;
+  char *space  = "        ";
+  char *spline = "  SP--> ";
+  /* int start = end - 10; */
   for (int i = 10; i >= 0; i--) {
-    printf("\t%04X\t%02X\n", state->cpu->registers->SP-i + offset, read_mem_byte(state, state->cpu->registers->SP - i + offset));
+    if ((uint8_t) end - i == state->cpu->registers->SP) {
+      printf("%s%04X\t%02X\n", spline, end - i + offset, read_mem_byte(state, end - i + offset));
+    }
+    else {
+      printf("%s%04X\t%02X\n", space, end - i + offset, read_mem_byte(state, end - i + offset));
+    }
+    /* printf("        %04X\t%02X\n", state->cpu->registers->SP-i + offset, read_mem_byte(state, state->cpu->registers->SP - i + offset)); */
   }
 }
 
@@ -586,7 +596,7 @@ void execute_next_action(nes_state *state) {
     break;
     // Pull ACC from stack (In PLA)
   case 17:
-    state->cpu->registers->ACC = read_mem_byte(state, state->cpu->registers->SP + 0x100 - 1);
+    state->cpu->registers->ACC = read_mem_byte(state, state->cpu->registers->SP + 0x100);
     break;
     // Pull Status register from stack (In PLP)
   case 19:
@@ -594,7 +604,10 @@ void execute_next_action(nes_state *state) {
     break;
     // Push Status register to stack, decrement S
   case 20:
-    state->memory[state->cpu->registers->SP] = state->cpu->registers->SR;
+    printf("HIT!\n");
+    /* See this note about the B flag for explanation of the OR */
+/* https://wiki.nesdev.com/w/index.php/Status_flags#The_B_flag */
+    state->memory[state->cpu->registers->SP + 0x100] = 48 | state->cpu->registers->SR;
     state->cpu->registers->SP--;
     break;
       // clear carry flag
