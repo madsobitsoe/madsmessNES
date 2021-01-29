@@ -8,7 +8,7 @@ void step(nes_state *state) {
   ppu_step(state);
   // Log if needed
   // Step one cycle in CPU
-  if (state->cpu->stall_cycles == 0) {
+  if (state->cpu->next_action == state->cpu->end_of_queue) {
     state->cpu->current_opcode_PC = state->cpu->registers->PC;
     state->cpu->current_opcode = read_mem_byte(state, state->cpu->registers->PC);
     logger_log(state);
@@ -27,6 +27,8 @@ nes_state* init_state() {
   init_registers(regs);
   state->cpu = cpu;
   state->cpu->registers = regs;
+  state->cpu->next_action = 0;
+  state->cpu->end_of_queue = 0;
   // Set up memory (malloc)
   state->memory = malloc(2048); // 2kb ram (at least for now)
   state->running = true;
@@ -68,7 +70,7 @@ void reset(nes_state *state) {
   state->cpu->registers->PC = 0xFFFD;
   set_interrupt_flag(state);
   state->cpu->registers->SP = 0xFD;
-  state->cpu->cpu_cycle = 6;
+  state->cpu->cpu_cycle = 7;
   /* state->current_opcode_PC = 0xFFFD; */
   /* state->current_opcode = read_mem_byte(state, state->registers->PC); */
   state->ppu_cycle = 18;
@@ -85,4 +87,5 @@ void print_state(nes_state *state) {
   printf("Stall cycles: %d\n", state->cpu->stall_cycles);
   print_regs(state);
   print_stack(state);
+  printf("Addr_dest: %p\tAddr_source: %p\tAddr_X: %p\n", (state->cpu->destination_reg), (state->cpu->source_reg), &(state->cpu->registers->X));
 }

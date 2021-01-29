@@ -29,7 +29,7 @@ all: emu
 # emu: $(OBJ)
 # 	$(CC) -o $@ $^ $(CFLAGS)
 
-emu: src/cpu.c src/nes.c src/logger.c src/main.c
+emu: src/cpu.c src/nes.c  src/logger.c src/main.c
 	gcc -Wall -Wextra -o emu src/cpu.c src/nes.c src/logger.c src/main.c -Iinclude
 
 .PHONY: clean

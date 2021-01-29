@@ -446,23 +446,128 @@ int cycles_for_opcode(nes_state *state) { //uint8_t opcode) {
   return cycles;
 }
 
+
+
+
+// Instructions take 2-7 cycles.
+// Each cycle is either a READ or a WRITE cycle - never both
+// an instruction is a set of "actions" executed serially
+
+
+// Some example actions
+/*       1    PC     R  fetch opcode, increment PC */
+/*       2    PC     R  fetch low address byte, increment PC */
+/*       3    PC     R  copy low address byte to PCL, fetch high address */
+/*       byte to PCH */
+
+
+
+
+void execute_next_action(nes_state *state) {
+  switch (state->cpu->action_queue[state->cpu->next_action]) {
+    // Dummy cycle, "do nothing"
+  case 0:
+    break;
+    /* R fetch opcode, increment PC - first cycle in all instructions*/
+  case 1:
+    printf("Executing action 1!\n");
+    state->cpu->current_opcode = read_mem_byte(state, state->cpu->registers->PC);
+    state->cpu->registers->PC++;
+    break;
+    /* R  fetch low address byte, increment PC */
+  case 2:
+    printf("Executing action 2!\n");
+    state->cpu->low_addr_byte = read_mem_byte(state, state->cpu->registers->PC);
+    state->cpu->registers->PC++;
+    break;
+    /* R  copy low address byte to PCL, fetch high address byte to PCH */
+  case 3:
+    printf("Executing action 3!\n");
+    // Read the high address first to avoid overwriting PC (having to store it)
+    state->cpu->high_addr_byte = read_mem_byte(state, state->cpu->registers->PC);
+    state->cpu->registers->PC =  ((uint16_t) state->cpu->low_addr_byte | (state->cpu->high_addr_byte << 8));
+    break;
+    // fetch value, save to X, increment PC, affect flag
+  case 4:
+    printf("Executing action 4!\n");
+    *(state->cpu->destination_reg) = read_mem_byte(state, state->cpu->registers->PC);
+    state->cpu->registers->PC++;
+    if (*state->cpu->destination_reg == 0) { set_zero_flag(state); }
+    break;
+    // W  write register to effective address - zeropage
+  case 5:
+    printf("Executing action 5!\n");
+    state->memory[state->cpu->low_addr_byte] = *(state->cpu->source_reg);
+    break;
+    // W  push PCH on stack, decrement S
+  case 6:
+    push(state, (uint8_t) (state->cpu->registers->PC >> 8));
+    break;
+    // W  push PCL on stack, decrement S
+  case 7:
+    push(state, (uint8_t) (state->cpu->registers->PC));
+    break;
+    // set carry flag
+  case 8:
+    set_carry_flag(state);
+    break;
+  }
+  state->cpu->next_action++;
+  if (state->cpu->next_action > 9) { state->cpu->next_action = 0; }
+}
+
+void add_action_to_queue(nes_state *state, uint8_t action) {
+  state->cpu->action_queue[state->cpu->end_of_queue] = action;
+  state->cpu->end_of_queue++;
+  if (state->cpu->end_of_queue > 9) {   state->cpu->end_of_queue = 0; }
+}
+
+void add_instruction_to_queue(nes_state *state) {
+  add_action_to_queue(state, 1);
+  switch (read_mem_byte(state, state->cpu->registers->PC)) {
+    // JSR
+  case 0x20:
+    add_action_to_queue(state, 2);
+    add_action_to_queue(state, 0);
+    add_action_to_queue(state, 6);
+    add_action_to_queue(state, 7);
+    add_action_to_queue(state, 3);
+    break;
+    // JMP immediate
+  case 0x4C:
+    add_action_to_queue(state, 2);
+    add_action_to_queue(state, 3);
+    break;
+    // LDX Immediate
+  case 0xA2:
+    state->cpu->destination_reg = &state->cpu->registers->X;
+    add_action_to_queue(state, 4);
+    break;
+    // STX immediate
+  case 0x86:
+    state->cpu->source_reg = &state->cpu->registers->X;
+    add_action_to_queue(state, 2);
+    add_action_to_queue(state, 5);
+    break;
+    // SEC - set carry flag
+  case 0x38:
+    add_action_to_queue(state, 8);
+    break;
+    // NOP
+  case 0xEA:
+    add_action_to_queue(state, 0);
+    break;
+  }
+
+}
+
 void cpu_step(nes_state *state) {
-  if (state->cpu->stall_cycles <= 0) {
-    // Store the program counter pointing at the current opcode
-    state->cpu->current_opcode_PC = state->cpu->registers->PC;
-    // Fetch the instruction at $PC
-    state->cpu->current_opcode = fetch_next_opcode(state);
-    // Get the amount of cycles for the instruction
-    state->cpu->stall_cycles = cycles_for_opcode(state);
-    // Increment PC
-    state->cpu->registers->PC += 1;
+  if (state->cpu->next_action == state->cpu->end_of_queue) {
+    add_instruction_to_queue(state);
   }
-  else {
-    // Execute the instruction
-    //    printf("Executing opcode: 0x%02x\n", state->current_opcode);
-    exec_opcode(state);
-    state->cpu->stall_cycles -= 1;
-  }
+  execute_next_action(state);
+  state->cpu->cpu_cycle++;
+
 }
 
 

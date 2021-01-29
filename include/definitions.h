@@ -16,9 +16,16 @@ typedef struct REGISTERS {
 typedef struct CPU_STATE {
   registers *registers;
   uint8_t current_opcode;
+  uint8_t low_addr_byte;
+  uint8_t high_addr_byte;
+  uint8_t *destination_reg;
+  uint8_t *source_reg;
   uint16_t current_opcode_PC;
   uint64_t cpu_cycle;
   uint8_t stall_cycles;
+  uint8_t action_queue[10];
+  uint8_t next_action;
+  uint8_t end_of_queue;
 } cpu_state;
 
 // A struct representing the state of the console
