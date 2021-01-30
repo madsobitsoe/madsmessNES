@@ -641,16 +641,18 @@ void execute_next_action(nes_state *state) {
       // CMP immediate
   case 22:
         {
-      int8_t res = ((int8_t) state->cpu->registers->ACC) - (int8_t) read_mem_byte(state, state->cpu->registers->PC);
+          uint8_t acc = state->cpu->registers->ACC;
+          uint8_t value = read_mem_byte(state, state->cpu->registers->PC);
+          uint8_t res = acc - value;
       /* http://www.6502.org/tutorials/6502opcodes.html#CMP */
       /* Compare sets flags as if a subtraction had been carried out. */
    /* If the value in the accumulator is equal or greater than the compared value, */
-      /* the Carry will be set.
+      /* the Carry will be set. */
       /* The equal (Z) and negative (N) flags will be set based on equality or lack */
       /* thereof and the sign (i.e. A>=$80) of the accumulator. */
-      if (res == 0) { set_zero_flag(state); } else { clear_zero_flag(state); }
-      if (res >= 0) { set_carry_flag(state); } else { clear_carry_flag(state); }
-      if (res < 0)  { set_negative_flag(state); } else { clear_negative_flag(state); }
+      if (acc == value) { set_zero_flag(state); } else { clear_zero_flag(state); }
+      if (acc >= value) { set_carry_flag(state); } else { clear_carry_flag(state); }
+      if (res >= 0x80)  { set_negative_flag(state); } else { clear_negative_flag(state); }
       state->cpu->registers->PC++;
     }
 
@@ -672,6 +674,23 @@ void execute_next_action(nes_state *state) {
       if (res == 0) { set_zero_flag(state); } else { clear_zero_flag(state); }
       if (res > 0x7F) { set_negative_flag(state); } else { clear_negative_flag(state); }
       state->cpu->registers->ACC = res;
+      state->cpu->registers->PC++;
+    }
+      break;
+    // ADC immediate, increment PC
+  case 25:
+    {
+      uint8_t acc = state->cpu->registers->ACC;
+      uint8_t value = read_mem_byte(state, state->cpu->registers->PC);
+      uint16_t res = ((uint16_t) acc) + ((uint16_t) value);
+      if (is_carry_flag_set(state)) { res++; }
+      if ((uint8_t) res == 0) { set_zero_flag(state); } else { clear_zero_flag(state); }
+      if ((res & 128) == 128) { set_negative_flag(state); } else { clear_negative_flag(state); }
+      if (res > 255) { set_carry_flag(state);} else { clear_carry_flag(state); }
+      if ((acc ^ (uint8_t) res) & (value ^ (uint8_t) res) & 0x80)
+        {    set_overflow_flag(state); }
+      else { clear_overflow_flag(state);}
+      state->cpu->registers->ACC = (uint8_t) res;
       state->cpu->registers->PC++;
     }
       break;
@@ -861,6 +880,11 @@ void add_instruction_to_queue(nes_state *state) {
 /*         4  $0100,S  R  pull register from stack */
     add_action_to_queue(state, 17);
     break;
+    // ADC Immediate
+  case 0x69:
+    add_action_to_queue(state, 25);
+    break;
+
     // BVS - Branch Overflow Set
   case 0x70:
     add_action_to_queue(state, 9);

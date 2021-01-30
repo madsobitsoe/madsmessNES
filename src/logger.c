@@ -81,6 +81,14 @@ void disass(nes_state *state, char *output) {
             read_mem_byte(state, state->cpu->current_opcode_PC+2),
             read_mem_byte(state, state->cpu->current_opcode_PC+1));
     break;
+    // ADC immediate
+  case 0x69:
+    sprintf(output, "%04X  %02X %02X     ADC #$%02X",
+            state->cpu->current_opcode_PC,
+            state->cpu->current_opcode,
+            read_mem_byte(state, state->cpu->current_opcode_PC+1),
+            read_mem_byte(state, state->cpu->current_opcode_PC+1));
+    break;
     // LDX immediate
   case 0xa2:
     sprintf(output, "%04X  %02X %02X     LDX #$%02X",
