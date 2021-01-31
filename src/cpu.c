@@ -542,6 +542,41 @@ void execute_next_action(nes_state *state) {
     }
     break;
 
+    // CMP immediate
+  case 34:
+    {
+      uint8_t acc = state->cpu->registers->ACC;
+      uint8_t value = read_mem_byte(state, ((uint16_t) state->cpu->high_addr_byte) << 8 | (uint16_t) state->cpu->low_addr_byte);
+      uint8_t res = acc - value;
+      /* http://www.6502.org/tutorials/6502opcodes.html#CMP */
+      /* Compare sets flags as if a subtraction had been carried out. */
+      /* If the value in the accumulator is equal or greater than the compared value, */
+      /* the Carry will be set. */
+      /* The equal (Z) and negative (N) flags will be set based on equality or lack */
+      /* thereof and the sign (i.e. A>=$80) of the accumulator. */
+      if (acc == value) { set_zero_flag(state); } else { clear_zero_flag(state); }
+      if (acc >= value) { set_carry_flag(state); } else { clear_carry_flag(state); }
+      if (res >= 0x80)  { set_negative_flag(state); } else { clear_negative_flag(state); }
+
+    }
+    break;
+    // SBC X indexed indirect
+  case 35:
+    {
+      uint8_t acc = state->cpu->registers->ACC;
+      // The only difference between ADC and SBC should be that SBC "complements" (negates) it's argument
+      uint8_t value = ~read_mem_byte(state, ((uint16_t) state->cpu->high_addr_byte) << 8 | (uint16_t) state->cpu->low_addr_byte);
+      uint16_t res = ((uint16_t) acc) + ((uint16_t) value);
+      if (is_carry_flag_set(state)) { res++; }
+      if ((uint8_t) res == 0) { set_zero_flag(state); } else { clear_zero_flag(state); }
+      if ((res & 128) == 128) { set_negative_flag(state); } else { clear_negative_flag(state); }
+      if (res > 255) { set_carry_flag(state);} else { clear_carry_flag(state); }
+      if ((acc ^ (uint8_t) res) & (value ^ (uint8_t) res) & 0x80)
+        {    set_overflow_flag(state); }
+      else { clear_overflow_flag(state);}
+      state->cpu->registers->ACC = (uint8_t) res;
+    }
+    break;
 
     // clear carry flag
   case 90:
@@ -1192,6 +1227,29 @@ add_action_to_queue(state, 15);
   case 0xB8:
     add_action_to_queue(state, 96);
     break;
+    // CMP indexed indirect
+  case 0xC1:
+    /*   2      PC       R  fetch pointer address, increment PC */
+    /*   3    pointer    R  read from the address, add X to it */
+    /*   4   pointer+X   R  fetch effective address low */
+    /*   5  pointer+X+1  R  fetch effective address high */
+    /*   6    address    R  read from effective address */
+
+    state->cpu->high_addr_byte = 0x0;
+    state->cpu->low_addr_byte = 0x0;
+    //    state->cpu->source_reg = &state->cpu->registers->ACC;
+    state->cpu->destination_reg = &state->cpu->registers->ACC;
+    /* 2      PC       R  fetch pointer address, increment PC */
+    add_action_to_queue(state, 11); // increment PC, nowhere to store pointer
+    /*   3    pointer    R  read from the address, add X to it */
+    add_action_to_queue(state, 304);
+    /*   4   pointer+X   R  fetch effective address low */
+    add_action_to_queue(state, 305);
+    /*   5  pointer+X+1  R  fetch effective address high */
+    add_action_to_queue(state, 306);
+    /*   6    address    W  write ACC to effective address */
+    add_action_to_queue(state, 34);
+    break;
     // INY - Increment Y register
   case 0xC8:
     state->cpu->source_reg = &state->cpu->registers->Y;
@@ -1218,7 +1276,30 @@ add_action_to_queue(state, 15);
   case 0xD8:
     add_action_to_queue(state, 93);
     break;
-    // INX - Decrement X register
+    // SBC indexed indirect
+  case 0xE1:
+    /*   2      PC       R  fetch pointer address, increment PC */
+    /*   3    pointer    R  read from the address, add X to it */
+    /*   4   pointer+X   R  fetch effective address low */
+    /*   5  pointer+X+1  R  fetch effective address high */
+    /*   6    address    R  read from effective address */
+
+    state->cpu->high_addr_byte = 0x0;
+    state->cpu->low_addr_byte = 0x0;
+    //    state->cpu->source_reg = &state->cpu->registers->ACC;
+    state->cpu->destination_reg = &state->cpu->registers->ACC;
+    /* 2      PC       R  fetch pointer address, increment PC */
+    add_action_to_queue(state, 11); // increment PC, nowhere to store pointer
+    /*   3    pointer    R  read from the address, add X to it */
+    add_action_to_queue(state, 304);
+    /*   4   pointer+X   R  fetch effective address low */
+    add_action_to_queue(state, 305);
+    /*   5  pointer+X+1  R  fetch effective address high */
+    add_action_to_queue(state, 306);
+    /*   6    address    W  write ACC to effective address */
+    add_action_to_queue(state, 35);
+    break;
+        // INX - Decrement X register
   case 0xE8:
     state->cpu->source_reg = &state->cpu->registers->X;
     add_action_to_queue(state, 200);
