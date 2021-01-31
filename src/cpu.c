@@ -524,6 +524,25 @@ void execute_next_action(nes_state *state) {
       state->cpu->registers->ACC = res;
     }
     break;
+
+    // ADC memory
+  case 33:
+    {
+      uint8_t acc = state->cpu->registers->ACC;
+      uint8_t value = read_mem_byte(state, ((uint16_t) state->cpu->high_addr_byte) << 8 | (uint16_t) state->cpu->low_addr_byte);
+      uint16_t res = ((uint16_t) acc) + ((uint16_t) value);
+      if (is_carry_flag_set(state)) { res++; }
+      if ((uint8_t) res == 0) { set_zero_flag(state); } else { clear_zero_flag(state); }
+      if ((res & 128) == 128) { set_negative_flag(state); } else { clear_negative_flag(state); }
+      if (res > 255) { set_carry_flag(state);} else { clear_carry_flag(state); }
+      if ((acc ^ (uint8_t) res) & (value ^ (uint8_t) res) & 0x80)
+        {    set_overflow_flag(state); }
+      else { clear_overflow_flag(state);}
+      state->cpu->registers->ACC = (uint8_t) res;
+    }
+    break;
+
+
     // clear carry flag
   case 90:
     clear_carry_flag(state);
@@ -936,6 +955,29 @@ add_action_to_queue(state, 15);
     add_action_to_queue(state, 14);
 /*         4  $0100,S  R  pull register from stack */
     add_action_to_queue(state, 17);
+    break;
+    // ADC indexed indirect
+  case 0x61:
+    /*   2      PC       R  fetch pointer address, increment PC */
+    /*   3    pointer    R  read from the address, add X to it */
+    /*   4   pointer+X   R  fetch effective address low */
+    /*   5  pointer+X+1  R  fetch effective address high */
+    /*   6    address    R  read from effective address */
+
+    state->cpu->high_addr_byte = 0x0;
+    state->cpu->low_addr_byte = 0x0;
+    //    state->cpu->source_reg = &state->cpu->registers->ACC;
+    state->cpu->destination_reg = &state->cpu->registers->ACC;
+    /* 2      PC       R  fetch pointer address, increment PC */
+    add_action_to_queue(state, 11); // increment PC, nowhere to store pointer
+    /*   3    pointer    R  read from the address, add X to it */
+    add_action_to_queue(state, 304);
+    /*   4   pointer+X   R  fetch effective address low */
+    add_action_to_queue(state, 305);
+    /*   5  pointer+X+1  R  fetch effective address high */
+    add_action_to_queue(state, 306);
+    /*   6    address    W  write ACC to effective address */
+    add_action_to_queue(state, 33);
     break;
     // ADC Immediate
   case 0x69:
