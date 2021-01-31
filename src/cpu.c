@@ -494,7 +494,36 @@ void execute_next_action(nes_state *state) {
       state->cpu->registers->SP++;
     }
     break;
-
+    // ORA memory
+  case 30:
+    {
+      uint16_t addr = ((uint16_t) state->cpu->high_addr_byte << 8) | ((uint16_t) state->cpu->low_addr_byte);
+      uint8_t res = state->cpu->registers->ACC | (read_mem_byte(state, addr));
+      if (res == 0) { set_zero_flag(state); } else { clear_zero_flag(state); }
+      if (res > 0x7F) { set_negative_flag(state); } else { clear_negative_flag(state); }
+      state->cpu->registers->ACC = res;
+    }
+    break;
+    // AND memory
+  case 31:
+    {
+      uint16_t addr = ((uint16_t) state->cpu->high_addr_byte << 8) | ((uint16_t) state->cpu->low_addr_byte);
+      uint8_t res = state->cpu->registers->ACC & (read_mem_byte(state, addr));
+      if (res == 0) { set_zero_flag(state); } else { clear_zero_flag(state); }
+      if (res > 0x7F) { set_negative_flag(state); } else { clear_negative_flag(state); }
+      state->cpu->registers->ACC = res;
+    }
+    break;
+    // EOR memory
+  case 32:
+    {
+      uint16_t addr = ((uint16_t) state->cpu->high_addr_byte << 8) | ((uint16_t) state->cpu->low_addr_byte);
+      uint8_t res = state->cpu->registers->ACC ^ (read_mem_byte(state, addr));
+      if (res == 0) { set_zero_flag(state); } else { clear_zero_flag(state); }
+      if (res > 0x7F) { set_negative_flag(state); } else { clear_negative_flag(state); }
+      state->cpu->registers->ACC = res;
+    }
+    break;
     // clear carry flag
   case 90:
     clear_carry_flag(state);
@@ -697,11 +726,34 @@ void add_action_to_queue(nes_state *state, uint16_t action) {
 void add_instruction_to_queue(nes_state *state) {
   add_action_to_queue(state, 1);
   switch (read_mem_byte(state, state->cpu->registers->PC)) {
+    // ORA indexed indirect
+  case 0x01:
+    /*   2      PC       R  fetch pointer address, increment PC */
+    /*   3    pointer    R  read from the address, add X to it */
+    /*   4   pointer+X   R  fetch effective address low */
+    /*   5  pointer+X+1  R  fetch effective address high */
+    /*   6    address    R  read from effective address */
+
+    state->cpu->high_addr_byte = 0x0;
+    state->cpu->low_addr_byte = 0x0;
+    //    state->cpu->source_reg = &state->cpu->registers->ACC;
+    state->cpu->destination_reg = &state->cpu->registers->ACC;
+    /* 2      PC       R  fetch pointer address, increment PC */
+    add_action_to_queue(state, 11); // increment PC, nowhere to store pointer
+    /*   3    pointer    R  read from the address, add X to it */
+    add_action_to_queue(state, 304);
+    /*   4   pointer+X   R  fetch effective address low */
+    add_action_to_queue(state, 305);
+    /*   5  pointer+X+1  R  fetch effective address high */
+    add_action_to_queue(state, 306);
+    /*   6    address    W  write ACC to effective address */
+    add_action_to_queue(state, 30);
+    break;
     // PHP - Push Processor Status on stack
   case 0x08:
-      /* 2    PC     R  read next instruction byte (and throw it away) */
+    /* 2    PC     R  read next instruction byte (and throw it away) */
     add_action_to_queue(state, 0);
-      /*   3  $0100,S  W  push register on stack, decrement S */
+    /*   3  $0100,S  W  push register on stack, decrement S */
     add_action_to_queue(state, 20);
     break;
     // ORA immediate
@@ -730,6 +782,29 @@ void add_instruction_to_queue(nes_state *state) {
     add_action_to_queue(state, 6);
     add_action_to_queue(state, 7);
     add_action_to_queue(state, 3);
+    break;
+    // AND indexed indirect
+  case 0x21:
+    /*   2      PC       R  fetch pointer address, increment PC */
+    /*   3    pointer    R  read from the address, add X to it */
+    /*   4   pointer+X   R  fetch effective address low */
+    /*   5  pointer+X+1  R  fetch effective address high */
+    /*   6    address    R  read from effective address */
+
+    state->cpu->high_addr_byte = 0x0;
+    state->cpu->low_addr_byte = 0x0;
+    //    state->cpu->source_reg = &state->cpu->registers->ACC;
+    state->cpu->destination_reg = &state->cpu->registers->ACC;
+    /* 2      PC       R  fetch pointer address, increment PC */
+    add_action_to_queue(state, 11); // increment PC, nowhere to store pointer
+    /*   3    pointer    R  read from the address, add X to it */
+    add_action_to_queue(state, 304);
+    /*   4   pointer+X   R  fetch effective address low */
+    add_action_to_queue(state, 305);
+    /*   5  pointer+X+1  R  fetch effective address high */
+    add_action_to_queue(state, 306);
+    /*   6    address    W  write ACC to effective address */
+    add_action_to_queue(state, 31);
     break;
     // BIT zero page
   case 0x24:
@@ -789,7 +864,29 @@ void add_instruction_to_queue(nes_state *state) {
     add_action_to_queue(state, 16);
 
     break;
-    // PHA - Push ACC to stack
+    // AND indexed indirect
+  case 0x41:
+    /*   2      PC       R  fetch pointer address, increment PC */
+    /*   3    pointer    R  read from the address, add X to it */
+    /*   4   pointer+X   R  fetch effective address low */
+    /*   5  pointer+X+1  R  fetch effective address high */
+    /*   6    address    R  read from effective address */
+
+    state->cpu->high_addr_byte = 0x0;
+    state->cpu->low_addr_byte = 0x0;
+    //    state->cpu->source_reg = &state->cpu->registers->ACC;
+    state->cpu->destination_reg = &state->cpu->registers->ACC;
+    /* 2      PC       R  fetch pointer address, increment PC */
+    add_action_to_queue(state, 11); // increment PC, nowhere to store pointer
+    /*   3    pointer    R  read from the address, add X to it */
+    add_action_to_queue(state, 304);
+    /*   4   pointer+X   R  fetch effective address low */
+    add_action_to_queue(state, 305);
+    /*   5  pointer+X+1  R  fetch effective address high */
+    add_action_to_queue(state, 306);
+    /*   6    address    W  write ACC to effective address */
+    add_action_to_queue(state, 32);
+    break;    // PHA - Push ACC to stack
   case 0x48:
     /* R  read next instruction byte (and throw it away) */
     add_action_to_queue(state, 0);

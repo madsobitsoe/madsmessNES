@@ -10,6 +10,24 @@ FILE *logfile;
 
 void disass(nes_state *state, char *output) {
   switch(state->cpu->current_opcode) {
+    // ORA indirect,X
+  case 0x01:
+    {
+      uint8_t operand = read_mem_byte(state, state->cpu->current_opcode_PC+1);
+      uint16_t addr_addr = (uint16_t) state->cpu->registers->X + (uint16_t) operand;
+      addr_addr &= 0xFF;
+      uint16_t effective_addr = ((uint16_t) read_mem_byte(state, addr_addr)) | (((uint16_t) read_mem_byte(state, (addr_addr+1) & 0xFF)) << 8);
+      uint8_t value = read_mem_byte(state, effective_addr);
+      sprintf(output, "%04X  %02X %02X     ORA ($%02X,X) @ %02X = %04X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              operand,
+              operand,
+              addr_addr,
+              effective_addr,
+              value);
+    }
+    break;
     // PHP
   case 0x08:
     sprintf(output, "%04X  %02X        PHP",
@@ -27,6 +45,25 @@ void disass(nes_state *state, char *output) {
     sprintf(output, "%04X  %02X        CLC",
             state->cpu->current_opcode_PC,
             state->cpu->current_opcode);
+    break;
+
+    // AND indirect,X
+  case 0x21:
+    {
+      uint8_t operand = read_mem_byte(state, state->cpu->current_opcode_PC+1);
+      uint16_t addr_addr = (uint16_t) state->cpu->registers->X + (uint16_t) operand;
+      addr_addr &= 0xFF;
+      uint16_t effective_addr = ((uint16_t) read_mem_byte(state, addr_addr)) | (((uint16_t) read_mem_byte(state, (addr_addr+1) & 0xFF)) << 8);
+      uint8_t value = read_mem_byte(state, effective_addr);
+      sprintf(output, "%04X  %02X %02X     AND ($%02X,X) @ %02X = %04X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              operand,
+              operand,
+              addr_addr,
+              effective_addr,
+              value);
+    }
     break;
     // SEC
   case 0x38:
@@ -105,7 +142,24 @@ void disass(nes_state *state, char *output) {
             state->cpu->current_opcode_PC,
             state->cpu->current_opcode);
     break;
-
+    // EOR indirect,X
+  case 0x41:
+    {
+      uint8_t operand = read_mem_byte(state, state->cpu->current_opcode_PC+1);
+      uint16_t addr_addr = (uint16_t) state->cpu->registers->X + (uint16_t) operand;
+      addr_addr &= 0xFF;
+      uint16_t effective_addr = ((uint16_t) read_mem_byte(state, addr_addr)) | (((uint16_t) read_mem_byte(state, (addr_addr+1) & 0xFF)) << 8);
+      uint8_t value = read_mem_byte(state, effective_addr);
+      sprintf(output, "%04X  %02X %02X     EOR ($%02X,X) @ %02X = %04X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              operand,
+              operand,
+              addr_addr,
+              effective_addr,
+              value);
+    }
+    break;
     // PHA
   case 0x48:
     sprintf(output, "%04X  %02X        PHA",
