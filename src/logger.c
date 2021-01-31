@@ -99,6 +99,13 @@ void disass(nes_state *state, char *output) {
             read_mem_byte(state, state->cpu->current_opcode_PC+1),
             read_mem_byte(state, state->cpu->current_opcode_PC+1));
     break;
+    // ROR A
+  case 0x2A:
+    sprintf(output, "%04X  %02X        ROL A",
+            state->cpu->current_opcode_PC,
+            state->cpu->current_opcode);
+    break;
+
     // BMI
   case 0x30:
     sprintf(output, "%04X  %02X %02X     BMI $%04X",

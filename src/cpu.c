@@ -632,6 +632,20 @@ void execute_next_action(nes_state *state) {
       state->cpu->registers->ACC = newacc;
     }
     break;
+    // ROL A
+  case 403:
+    {
+      uint8_t newacc = state->cpu->registers->ACC;
+      bool carry = is_carry_flag_set(state);
+      uint8_t msb = newacc & 0x80;
+      newacc = newacc << 1;
+      if (carry) { newacc |= 0x1; }
+      if (newacc & 0x80) { set_negative_flag(state); } else { clear_negative_flag(state); }
+      if (msb) { set_carry_flag(state); } else { clear_carry_flag(state); }
+      if (newacc == 0) { set_zero_flag(state); } else { clear_zero_flag(state); }
+      state->cpu->registers->ACC = newacc;
+    }
+    break;
 
   }
 
@@ -703,6 +717,11 @@ void add_instruction_to_queue(nes_state *state) {
   case 0x29:
     add_action_to_queue(state, 21);
     break;
+    // ROL A
+  case 0x2A:
+    add_action_to_queue(state, 403);
+    break;
+
     // JMP immediate
   case 0x4C:
     add_action_to_queue(state, 2);
