@@ -31,6 +31,12 @@ void disass(nes_state *state, char *output) {
             state->cpu->current_opcode_PC,
             state->cpu->current_opcode);
     break;
+    // ASL A
+  case 0x0A:
+    sprintf(output, "%04X  %02X        ASL A",
+            state->cpu->current_opcode_PC,
+            state->cpu->current_opcode);
+    break;
     // CLC
   case 0x18:
     sprintf(output, "%04X  %02X        CLC",
@@ -123,9 +129,15 @@ void disass(nes_state *state, char *output) {
             read_mem_byte(state, state->cpu->current_opcode_PC+1),
             read_mem_byte(state, state->cpu->current_opcode_PC+1));
     break;
+    // LSR A
+  case 0x4A:
+    sprintf(output, "%04X  %02X        LSR A",
+            state->cpu->current_opcode_PC,
+            state->cpu->current_opcode);
+    break;
 
     // JMP
-  case 0x4c:
+  case 0x4C:
     sprintf(output, "%04X  %02X %02X %02X  JMP $%02X%02X",
             state->cpu->current_opcode_PC,
             state->cpu->current_opcode,

@@ -601,6 +601,24 @@ void execute_next_action(nes_state *state) {
       if (*state->cpu->destination_reg & 0x80) { set_negative_flag(state); } else { clear_negative_flag(state); }
     }
     break;
+    // LSR A
+  case 400:
+    if (state->cpu->registers->ACC & 0x1) { set_carry_flag(state); }
+    else { clear_carry_flag(state); }
+    state->cpu->registers->ACC = state->cpu->registers->ACC >> 1;
+    clear_negative_flag(state);
+    if (state->cpu->registers->ACC != 0) { clear_zero_flag(state); } else { set_zero_flag(state); }
+    break;
+    // ASL A
+  case 401:
+    if (state->cpu->registers->ACC & 0x80) { set_carry_flag(state); }
+    else { clear_carry_flag(state); }
+    state->cpu->registers->ACC = state->cpu->registers->ACC << 1;
+    if (state->cpu->registers->ACC & 0x80) { set_negative_flag(state); } else {
+      clear_negative_flag(state);
+    }
+    if (state->cpu->registers->ACC != 0) { clear_zero_flag(state); } else { set_zero_flag(state); }
+    break;
 
   }
 
@@ -627,6 +645,10 @@ void add_instruction_to_queue(nes_state *state) {
     // ORA immediate
   case 0x09:
     add_action_to_queue(state, 23);
+    break;
+    // ASL A
+  case 0x0A:
+    add_action_to_queue(state, 401);
     break;
     // BPL - Branch Result Plus
   case 0x10:
@@ -710,6 +732,11 @@ void add_instruction_to_queue(nes_state *state) {
     // EOR immediate
   case 0x49:
     add_action_to_queue(state, 24);
+    break;
+
+    // LSR A - Logical Shift Right accumulator
+  case 0x4A:
+    add_action_to_queue(state, 400);
     break;
 
     // BVC - Branch Overflow clear

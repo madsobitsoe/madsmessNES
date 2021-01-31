@@ -1,4 +1,4 @@
-CYCLES=2300
-LINES=980
+CYCLES=2400
+LINES=1020
 ./emu -c $CYCLES test/nestest.nes
 diff <(head -$LINES testlog.log) <(head -$LINES test/nestest.log)
