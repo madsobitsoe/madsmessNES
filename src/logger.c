@@ -101,6 +101,12 @@ void disass(nes_state *state, char *output) {
             read_mem_byte(state, state->cpu->current_opcode_PC+1),
             state->cpu->current_opcode_PC + read_mem_byte(state, state->cpu->current_opcode_PC+1) + 2);
     break;
+    // RTI - Return from Interrupt
+  case 0x40:
+    sprintf(output, "%04X  %02X        RTI",
+            state->cpu->current_opcode_PC,
+            state->cpu->current_opcode);
+    break;
 
     // PHA
   case 0x48:

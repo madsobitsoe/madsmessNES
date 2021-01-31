@@ -478,6 +478,22 @@ void execute_next_action(nes_state *state) {
       state->cpu->registers->PC++;
     }
     break;
+    // Pull Status register from stack and increment SP (In RTI)
+  case 29:
+    {
+      // Two instructions (PLP and RTI) pull a byte from the stack and set all the flags. They ignore bits 5 and 4.
+      uint8_t value = read_mem_byte(state, state->cpu->registers->SP + 0x100);
+      // Ignore bits 4 and 5
+      value &= 0xcf;
+      uint8_t cur_flags = state->cpu->registers->SR;
+      // Keey bits 4 and 5
+      cur_flags &= 0x30;
+      // Join!
+      cur_flags |= value;
+      state->cpu->registers->SR = cur_flags;
+      state->cpu->registers->SP++;
+    }
+    break;
 
     // clear carry flag
   case 90:
@@ -669,11 +685,26 @@ void add_instruction_to_queue(nes_state *state) {
   case 0x38:
     add_action_to_queue(state, 100);
     break;
+    // RTI - Return from interrupt
+  case 0x40:
+    /* 2    PC     R  read next instruction byte (and throw it away) */
+    add_action_to_queue(state, 0); // doesn't read, just drones for one cycle
+    /*   3  $0100,S  R  increment S */
+    add_action_to_queue(state, 14);
+    /*   4  $0100,S  R  pull P from stack, increment S */
+    add_action_to_queue(state, 29);
+
+    /*   5  $0100,S  R  pull PCL from stack, increment S */
+    add_action_to_queue(state, 15);
+    /*   6  $0100,S  R  pull PCH from stack */
+    add_action_to_queue(state, 16);
+
+    break;
     // PHA - Push ACC to stack
   case 0x48:
- /* R  read next instruction byte (and throw it away) */
+    /* R  read next instruction byte (and throw it away) */
     add_action_to_queue(state, 0);
- /* W  push register on stack, decrement S */
+    /* W  push register on stack, decrement S */
     add_action_to_queue(state, 18);
     break;
     // EOR immediate
@@ -691,25 +722,25 @@ void add_instruction_to_queue(nes_state *state) {
     break;
     // RTS - Return from subroutine
   case 0x60:
-       /*  #  address R/W description */
-       /* --- ------- --- ----------------------------------------------- */
-       /*  1    PC     R  fetch opcode, increment PC */
-       /*  2    PC     R  read next instruction byte (and throw it away) */
+    /*  #  address R/W description */
+    /* --- ------- --- ----------------------------------------------- */
+    /*  1    PC     R  fetch opcode, increment PC */
+    /*  2    PC     R  read next instruction byte (and throw it away) */
     add_action_to_queue(state, 0); // doesn't read, just drones for one cycle
-       /*  3  $0100,S  R  increment S */
+    /*  3  $0100,S  R  increment S */
     add_action_to_queue(state, 14);
-       /*  4  $0100,S  R  pull PCL from stack, increment S */
-    add_action_to_queue(state, 15);
-    /*  5  $0100,S  R  pull PCH from stack */
-    add_action_to_queue(state, 16);
-    /*  6    PC     R  increment PC */
-    add_action_to_queue(state, 11);
-    break;
+    /*  4  $0100,S  R  pull PCL from stack, increment S */
+add_action_to_queue(state, 15);
+                        /*  5  $0100,S  R  pull PCH from stack */
+                        add_action_to_queue(state, 16);
+                        /*  6    PC     R  increment PC */
+                        add_action_to_queue(state, 11);
+                        break;
 
-    // PLA - Pull Accumulator from stack
-  case 0x68:
-/*         2    PC     R  read next instruction byte (and throw it away) */
-    add_action_to_queue(state, 0);
+                        // PLA - Pull Accumulator from stack
+                        case 0x68:
+                        /*         2    PC     R  read next instruction byte (and throw it away) */
+                        add_action_to_queue(state, 0);
 /*         3  $0100,S  R  increment S */
     add_action_to_queue(state, 14);
 /*         4  $0100,S  R  pull register from stack */
