@@ -36,8 +36,25 @@ int parse_cmd(char *line) {
     steps = strtol(line+1, NULL, 16);
     if (steps > 0) { return steps; }
   }
+  else if (strncmp(line, "p", 1) == 0) {
+    int loc = 0;
+    if (strlen(line) == 1) { return -1; }
+    loc = strtol(line+1, NULL, 16);
+    if (loc >= 0) { return (-2 - loc); }
+  }
   // Invalid input on -1
   return -1;
+}
+
+void print_mem(nes_state *state, uint16_t loc) {
+  printf("Printing memory starting at: %04X\n", loc);
+  uint8_t count = 0;
+  while (count < 10) {
+    printf("%02X ", state->memory[loc+count]);
+    count++;
+  }
+  printf("\n");
+
 }
 
 // gdb-like step interface
@@ -52,7 +69,7 @@ void ndb(nes_state *state) {
 
     print_log(state);
 
-    linebuf = readline("s [N]: step, q: quit >");
+    linebuf = readline("s [N]: step, p N: print memory, q: quit >");
     if (strlen(linebuf) > 0) {
       add_history(linebuf);
       cmd = parse_cmd(linebuf);
@@ -70,8 +87,13 @@ void ndb(nes_state *state) {
       step(state);
       break;
     default:
-      run_for_n_cycles(state, cmd);
-      break;
+      if (cmd > 0) {
+        run_for_n_cycles(state, cmd);
+               break;
+      }
+      else {
+        print_mem(state, (uint16_t) (-2 - cmd));
+      }
     }
     // readline malloc's a new linebuffer every time. Free it.
     free(linebuf);

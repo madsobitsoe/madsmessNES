@@ -5,21 +5,6 @@
 FILE *logfile;
 
 
-/* static log_entry logger_state_to_log_entry(nes_state *state) { */
-/*   log_entry entry = */
-/*     { .PC = state->current_opcode_PC, */
-/*       .opcode = state->current_opcode, */
-/*       .operand1 = -1, */
-/*       .operand2 = -1, */
-/*       .ACC = state->registers->ACC, */
-/*       .X = state->registers->X, */
-/*       .Y = state->registers->Y, */
-/*       .P = state->registers->SR, */
-/*       .SP = state->registers->SP, */
-/*       .CYC = state->master_clock */
-/*     }; */
-/*   return entry; */
-/* } */
 
 
 
@@ -296,6 +281,24 @@ void disass(nes_state *state, char *output) {
             read_mem_byte(state, state->cpu->current_opcode_PC+1),
             read_mem_byte(state, state->cpu->current_opcode_PC+1));
     break;
+    // LDA indirect,X
+  case 0xA1:
+    {
+      uint8_t operand = read_mem_byte(state, state->cpu->current_opcode_PC+1);
+      uint16_t addr_addr = (uint16_t) state->cpu->registers->X + (uint16_t) operand;
+      addr_addr &= 0xFF;
+      uint16_t effective_addr = ((uint16_t) read_mem_byte(state, addr_addr)) | (((uint16_t) read_mem_byte(state, (addr_addr+1) & 0xFF)) << 8);
+      uint8_t value = read_mem_byte(state, effective_addr);
+      sprintf(output, "%04X  %02X %02X     LDA ($%02X,X) @ %02X = %04X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              operand,
+              operand,
+              addr_addr,
+              effective_addr,
+              value);
+    }
+    break;
     // LDX immediate
   case 0xA2:
     sprintf(output, "%04X  %02X %02X     LDX #$%02X",
@@ -318,58 +321,58 @@ void disass(nes_state *state, char *output) {
               read_mem_byte(state, state->cpu->current_opcode_PC+1),
               read_mem_byte(state, addr));
     }
-    break;
-    // TAY
-  case 0xA8:
-    sprintf(output, "%04X  %02X        TAY",
-            state->cpu->current_opcode_PC,
-            state->cpu->current_opcode);
-    break;
-    // LDA immediate
-  case 0xA9:
-    sprintf(output, "%04X  %02X %02X     LDA #$%02X",
-            state->cpu->current_opcode_PC,
-            state->cpu->current_opcode,
-            read_mem_byte(state, state->cpu->current_opcode_PC+1),
-            read_mem_byte(state, state->cpu->current_opcode_PC+1));
-    break;
-    // TAX
-  case 0xAA:
-    sprintf(output, "%04X  %02X        TAX",
-            state->cpu->current_opcode_PC,
-            state->cpu->current_opcode);
-    break;
-    // LDA Absolute
-  case 0xAD:
-    {
-      uint16_t addr = read_mem_byte(state, state->cpu->current_opcode_PC+2) << 8;
-      addr |= read_mem_byte(state, state->cpu->current_opcode_PC+1);
+          break;
+          // TAY
+          case 0xA8:
+            sprintf(output, "%04X  %02X        TAY",
+                    state->cpu->current_opcode_PC,
+                    state->cpu->current_opcode);
+            break;
+            // LDA immediate
+            case 0xA9:
+              sprintf(output, "%04X  %02X %02X     LDA #$%02X",
+                      state->cpu->current_opcode_PC,
+                      state->cpu->current_opcode,
+                      read_mem_byte(state, state->cpu->current_opcode_PC+1),
+                      read_mem_byte(state, state->cpu->current_opcode_PC+1));
+              break;
+              // TAX
+              case 0xAA:
+                sprintf(output, "%04X  %02X        TAX",
+                        state->cpu->current_opcode_PC,
+                        state->cpu->current_opcode);
+                break;
+                // LDA Absolute
+                case 0xAD:
+                  {
+                    uint16_t addr = read_mem_byte(state, state->cpu->current_opcode_PC+2) << 8;
+                    addr |= read_mem_byte(state, state->cpu->current_opcode_PC+1);
 
-      sprintf(output, "%04X  %02X %02X %02X  LDA $%02X%02X = %02X",
-              state->cpu->current_opcode_PC,
-              state->cpu->current_opcode,
-              read_mem_byte(state, state->cpu->current_opcode_PC+1),
-              read_mem_byte(state, state->cpu->current_opcode_PC+2),
-              read_mem_byte(state, state->cpu->current_opcode_PC+2),
-              read_mem_byte(state, state->cpu->current_opcode_PC+1),
-              read_mem_byte(state, addr));
-    }
-    break;
-    // LDX Absolute
-  case 0xAE:
-    {
-      uint16_t addr = read_mem_byte(state, state->cpu->current_opcode_PC+2) << 8;
-      addr |= read_mem_byte(state, state->cpu->current_opcode_PC+1);
+                    sprintf(output, "%04X  %02X %02X %02X  LDA $%02X%02X = %02X",
+                            state->cpu->current_opcode_PC,
+                            state->cpu->current_opcode,
+                            read_mem_byte(state, state->cpu->current_opcode_PC+1),
+                            read_mem_byte(state, state->cpu->current_opcode_PC+2),
+                            read_mem_byte(state, state->cpu->current_opcode_PC+2),
+                            read_mem_byte(state, state->cpu->current_opcode_PC+1),
+                            read_mem_byte(state, addr));
+                  }
+                  break;
+                  // LDX Absolute
+                  case 0xAE:
+                    {
+                      uint16_t addr = read_mem_byte(state, state->cpu->current_opcode_PC+2) << 8;
+                      addr |= read_mem_byte(state, state->cpu->current_opcode_PC+1);
 
-      sprintf(output, "%04X  %02X %02X %02X  LDX $%02X%02X = %02X",
-              state->cpu->current_opcode_PC,
-              state->cpu->current_opcode,
-              read_mem_byte(state, state->cpu->current_opcode_PC+1),
-              read_mem_byte(state, state->cpu->current_opcode_PC+2),
-              read_mem_byte(state, state->cpu->current_opcode_PC+2),
-              read_mem_byte(state, state->cpu->current_opcode_PC+1),
-              read_mem_byte(state, addr));
-    }
+                      sprintf(output, "%04X  %02X %02X %02X  LDX $%02X%02X = %02X",
+                              state->cpu->current_opcode_PC,
+                              state->cpu->current_opcode,
+                              read_mem_byte(state, state->cpu->current_opcode_PC+1),
+                              read_mem_byte(state, state->cpu->current_opcode_PC+2),
+                              read_mem_byte(state, state->cpu->current_opcode_PC+2),
+                              read_mem_byte(state, state->cpu->current_opcode_PC+1),
+                              read_mem_byte(state, addr));
+                    }
                     break;
     // BCS
   case 0xB0:
