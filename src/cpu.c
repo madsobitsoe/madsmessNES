@@ -612,13 +612,10 @@ break;
       if (value & 0x80) { set_negative_flag(state); } else { clear_negative_flag(state); }
     }
     break;
-    // Read from address, add source_reg to result, store in "operand"
+    // Read from address, add X-register to result, store in "operand"
   case 304:
-
     state->cpu->operand = read_mem_byte(state, state->cpu->registers->PC - 1);
-    /* printf("operand after reading from pointer: %02X\n", state->cpu->operand); */
-    state->cpu->operand += *state->cpu->source_reg;
-    /* printf("operand after adding src_reg: %02X\n", state->cpu->operand); */
+    state->cpu->operand += state->cpu->registers->X;
     break;
     // Fetch effective address low
   case 305:
@@ -864,6 +861,31 @@ add_action_to_queue(state, 15);
   case 0x78:
     add_action_to_queue(state, 102);
     break;
+
+    // STA indirect, X (indexed indirect)
+  case 0x81:
+    /*        2      PC       R  fetch pointer address, increment PC */
+    /*        3    pointer    R  read from the address, add X to it */
+    /*        4   pointer+X   R  fetch effective address low */
+    /*        5  pointer+X+1  R  fetch effective address high */
+    /*        6    address    W  write to effective address */
+
+    state->cpu->high_addr_byte = 0x0;
+    state->cpu->low_addr_byte = 0x0;
+    state->cpu->source_reg = &state->cpu->registers->ACC;
+    state->cpu->destination_reg = &state->cpu->registers->ACC;
+    /* 2      PC       R  fetch pointer address, increment PC */
+    add_action_to_queue(state, 11); // increment PC, nowhere to store pointer
+    /*   3    pointer    R  read from the address, add X to it */
+    add_action_to_queue(state, 304);
+    /*   4   pointer+X   R  fetch effective address low */
+    add_action_to_queue(state, 305);
+    /*   5  pointer+X+1  R  fetch effective address high */
+    add_action_to_queue(state, 306);
+    /*   6    address    W  write ACC to effective address */
+    add_action_to_queue(state, 302);
+
+    break;
     // STA Zeropage
   case 0x85:
     state->cpu->source_reg = &state->cpu->registers->ACC;
@@ -936,7 +958,7 @@ add_action_to_queue(state, 15);
   case 0xA1:
     state->cpu->high_addr_byte = 0x0;
     state->cpu->low_addr_byte = 0x0;
-    state->cpu->source_reg = &state->cpu->registers->X;
+    state->cpu->source_reg = &state->cpu->registers->ACC;
     state->cpu->destination_reg = &state->cpu->registers->ACC;
     /* 2      PC       R  fetch pointer address, increment PC */
     add_action_to_queue(state, 11); // increment PC, nowhere to store pointer
