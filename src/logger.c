@@ -288,6 +288,21 @@ void disass(nes_state *state, char *output) {
             read_mem_byte(state, state->cpu->current_opcode_PC+1),
             read_mem_byte(state, state->cpu->current_opcode_PC+1));
     break;
+
+    // LDA Zeropage
+  case 0xA5:
+    {
+      uint16_t addr = (uint16_t) read_mem_byte(state, state->cpu->current_opcode_PC+1);
+      /* addr |= read_mem_byte(state, state->cpu->current_opcode_PC+1); */
+
+      sprintf(output, "%04X  %02X %02X     LDA $%02X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              read_mem_byte(state, state->cpu->current_opcode_PC+1),
+              read_mem_byte(state, state->cpu->current_opcode_PC+1),
+              read_mem_byte(state, addr));
+    }
+    break;
     // TAY
   case 0xA8:
     sprintf(output, "%04X  %02X        TAY",

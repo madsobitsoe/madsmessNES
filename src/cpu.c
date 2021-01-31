@@ -486,7 +486,7 @@ void execute_next_action(nes_state *state) {
       // Ignore bits 4 and 5
       value &= 0xcf;
       uint8_t cur_flags = state->cpu->registers->SR;
-      // Keey bits 4 and 5
+      // Keep bits 4 and 5
       cur_flags &= 0x30;
       // Join!
       cur_flags |= value;
@@ -574,6 +574,7 @@ void execute_next_action(nes_state *state) {
   case 203:
     (*state->cpu->destination_reg) = (*state->cpu->source_reg);
     break;
+
 
     // Fetch low byte of address, increment PC
   case 300:
@@ -890,6 +891,18 @@ add_action_to_queue(state, 15);
     state->cpu->destination_reg = &state->cpu->registers->X;
     add_action_to_queue(state, 4);
     break;
+    // LDA Zero page
+  case 0xA5:
+    // Clear out high addr byte, to ensure zero-page read
+    state->cpu->high_addr_byte = 0x0;
+    state->cpu->destination_reg = &state->cpu->registers->ACC;
+    /* 2    PC     R  fetch address, increment PC */
+    add_action_to_queue(state, 2);
+    /*       3  address  R  read from effective address */
+
+    add_action_to_queue(state, 303);
+    break;
+
     // TAY
   case 0xA8:
     state->cpu->source_reg = &state->cpu->registers->ACC;
