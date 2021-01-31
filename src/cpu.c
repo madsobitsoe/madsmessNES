@@ -844,6 +844,16 @@ add_action_to_queue(state, 15);
     state->cpu->source_reg = &state->cpu->registers->Y;
     add_action_to_queue(state, 201);
     break;
+    // STA Absolute
+  case 0x8D:
+    state->cpu->source_reg = &state->cpu->registers->ACC;
+    /*       2    PC     R  fetch low byte of address, increment PC */
+    add_action_to_queue(state, 300);
+    /*       3    PC     R  fetch high byte of address, increment PC */
+    add_action_to_queue(state, 301);
+    /*       4  address  W  write register to effective address */
+    add_action_to_queue(state, 302);
+    break;
     // STX Absolute
   case 0x8E:
     state->cpu->source_reg = &state->cpu->registers->X;

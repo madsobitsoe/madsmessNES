@@ -234,6 +234,22 @@ void disass(nes_state *state, char *output) {
             state->cpu->current_opcode_PC,
             state->cpu->current_opcode);
     break;
+    //STA Absolute
+  case 0x8D:
+    {
+      uint16_t addr = read_mem_byte(state, state->cpu->current_opcode_PC+2) << 8;
+      addr |= read_mem_byte(state, state->cpu->current_opcode_PC+1);
+
+      sprintf(output, "%04X  %02X %02X %02X  STA $%02X%02X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              read_mem_byte(state, state->cpu->current_opcode_PC+1),
+              read_mem_byte(state, state->cpu->current_opcode_PC+2),
+              read_mem_byte(state, state->cpu->current_opcode_PC+2),
+              read_mem_byte(state, state->cpu->current_opcode_PC+1),
+              read_mem_byte(state, addr));
+    }
+    break;
     //STX Absolute
   case 0x8E:
     {
