@@ -1060,6 +1060,12 @@ add_action_to_queue(state, 15);
     add_action_to_queue(state, 302);
 
     break;
+    // STY Zeropage
+  case 0x84:
+    state->cpu->source_reg = &state->cpu->registers->Y;
+    add_action_to_queue(state, 2);
+    add_action_to_queue(state, 5);
+    break;
     // STA Zeropage
   case 0x85:
     state->cpu->source_reg = &state->cpu->registers->ACC;
@@ -1152,11 +1158,33 @@ add_action_to_queue(state, 15);
     state->cpu->destination_reg = &state->cpu->registers->X;
     add_action_to_queue(state, 4);
     break;
+    // LDY Zero page
+  case 0xA4:
+    // Clear out high addr byte, to ensure zero-page read
+    state->cpu->high_addr_byte = 0x0;
+    state->cpu->destination_reg = &state->cpu->registers->Y;
+    /* 2    PC     R  fetch address, increment PC */
+    add_action_to_queue(state, 2);
+    /*       3  address  R  read from effective address */
+
+    add_action_to_queue(state, 303);
+    break;
     // LDA Zero page
   case 0xA5:
     // Clear out high addr byte, to ensure zero-page read
     state->cpu->high_addr_byte = 0x0;
     state->cpu->destination_reg = &state->cpu->registers->ACC;
+    /* 2    PC     R  fetch address, increment PC */
+    add_action_to_queue(state, 2);
+    /*       3  address  R  read from effective address */
+
+    add_action_to_queue(state, 303);
+    break;
+    // LDX Zero page
+  case 0xA6:
+    // Clear out high addr byte, to ensure zero-page read
+    state->cpu->high_addr_byte = 0x0;
+    state->cpu->destination_reg = &state->cpu->registers->X;
     /* 2    PC     R  fetch address, increment PC */
     add_action_to_queue(state, 2);
     /*       3  address  R  read from effective address */
