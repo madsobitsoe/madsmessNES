@@ -175,6 +175,12 @@ void disass(nes_state *state, char *output) {
             read_mem_byte(state, state->cpu->current_opcode_PC+1),
             read_mem_byte(state, state->cpu->current_opcode_PC+1));
     break;
+    // ROR A
+  case 0x6A:
+    sprintf(output, "%04X  %02X        ROR A",
+            state->cpu->current_opcode_PC,
+            state->cpu->current_opcode);
+    break;
 
     // BVS
   case 0x70:
