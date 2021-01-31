@@ -182,7 +182,7 @@ bool is_negative_flag_set(nes_state *state) {
   /*   // Somehow signal an invalid memloc */
   /* } */
   return memloc; // TODO Fix this
-}
+  }
 
 
 // Push a value to the stack
@@ -218,308 +218,33 @@ uint8_t read_mem_byte(nes_state *state, uint16_t memloc) {
 
 
 
-/* uint8_t fetch_next_opcode(nes_state *state) { */
-/*   printf("Fetching next opcode!"); */
-/*   uint16_t translated = translate_memory_location(state->cpu->registers->PC); */
 
-/*   uint8_t opcode = read_mem_byte(state, translated); */
-/*   return opcode; */
-/* } */
-
-/* // Execute a JMP instruction */
-/* void exec_JMP(nes_state *state) { */
-/*   uint16_t new_pc; */
-/*   switch (state->cpu->current_opcode) { */
-/*     // JMP */
-/*   case 0x4c: */
-/*     /\*     Absolute addressing *\/ */
-
-/*     /\*       JMP *\/ */
-
-/*     /\* #  address R/W description *\/ */
-/*     /\*       --- ------- --- ------------------------------------------------- *\/ */
-/*     /\*       1    PC     R  fetch opcode, increment PC *\/ */
-/*     /\*       2    PC     R  fetch low address byte, increment PC *\/ */
-/*     /\*       3    PC     R  copy low address byte to PCL, fetch high address *\/ */
-/*     /\*       byte to PCH *\/ */
-/*     switch(state->cpu->stall_cycles) { */
-/*     case 2: */
-/*       // Should fetch low address byte and inc pc, but we "fake" it */
-/*       state->cpu->registers->PC += 1; */
-/*       break; */
-/*     case 1: */
-/*       new_pc = read_mem_short(state, state->cpu->registers->PC - 1); */
-/*       set_pc(state, new_pc); */
-/*       break; */
-/*     } */
-/*     break; */
-/*     // JSR */
-/*   case 0x20: */
-/*     /\* #  address R/W description *\/ */
-/*     /\*     --- ------- --- ------------------------------------------------- *\/ */
-/*     /\*     1    PC     R  fetch opcode, increment PC *\/ */
-/*     /\*       2    PC     R  fetch low address byte, increment PC *\/ */
-/*     /\*       3  $0100,S  R  internal operation (predecrement S?) *\/ */
-/*     /\*       4  $0100,S  W  push PCH on stack, decrement S *\/ */
-/*     /\*       5  $0100,S  W  push PCL on stack, decrement S *\/ */
-/*     /\*       6    PC     R  copy low address byte to PCL, fetch high address *\/ */
-/*     /\*       byte to PCH *\/ */
-/*     switch(state->cpu->stall_cycles) { */
-/*     case 5: */
-/*       state->cpu->registers->PC += 1; */
-/*       break; */
-/*     case 4: // Decrement SP here? */
-/*       break; */
-/*     case 3: */
-/*       push(state, read_mem_byte(state, state->cpu->registers->PC)); */
-/*       break; */
-/*     case 2: */
-/*       push(state, read_mem_byte(state, state->cpu->registers->PC+1)); */
-/*       break; */
-/*     case 1: */
-/*       new_pc = read_mem_short(state, state->cpu->registers->PC - 1); */
-/*       set_pc(state, new_pc); */
-/*       break; */
-/*     } */
-/*     break; */
-
-/*   } */
+// Instructions take 2-7 cycles.
+// Each cycle is either a READ or a WRITE cycle - never both
+// an instruction is a set of "actions" executed serially
 
 
-/*   //  case 0x6c: */
-/*   /\*   Absolute indirect addressing (JMP) *\/ */
-
-/*   /\* #   address  R/W description *\/ */
-/*   /\*     --- --------- --- ------------------------------------------ *\/ */
-/*   /\*     1     PC      R  fetch opcode, increment PC *\/ */
-/*   /\*     2     PC      R  fetch pointer address low, increment PC *\/ */
-/*   /\*     3     PC      R  fetch pointer address high, increment PC *\/ */
-/*   /\*     4   pointer   R  fetch low address to latch *\/ */
-/*   /\*     5  pointer+1* R  fetch PCH, copy latch to PCL *\/ */
-
-/*   /\*     Note: * The PCH will always be fetched from the same page *\/ */
-/*   /\*     than PCL, i.e. page boundary crossing is not handled. *\/ */
-
-
-/* } */
-
-
-/* void exec_LDX(nes_state *state) { */
-/*   // ABSOLUTE ADDRESSING */
-/*   /\*   Read instructions (LDA, LDX, LDY, EOR, AND, ORA, ADC, SBC, CMP, BIT, *\/ */
-/*   /\*                      LAX, NOP) *\/ */
-
-/*   /\* #  address R/W description *\/ */
-/*   /\*     --- ------- --- ------------------------------------------ *\/ */
-/*   /\*     1    PC     R  fetch opcode, increment PC *\/ */
-/*   /\*     2    PC     R  fetch low byte of address, increment PC *\/ */
-/*   /\*     3    PC     R  fetch high byte of address, increment PC *\/ */
-/*   /\*     4  address  R  read from effective address *\/ */
-/*   uint8_t operand; */
-/*   switch (state->cpu->current_opcode) { */
-/*     // IMMEDIATE */
-/*     /\*     Immediate addressing *\/ */
-
-/*     /\* #  address R/W description *\/ */
-/*     /\*       --- ------- --- ------------------------------------------ *\/ */
-/*     /\*       1    PC     R  fetch opcode, increment PC *\/ */
-/*     /\*       2    PC     R  fetch value, increment PC *\/ */
-/*   case 0xa2: // LDX Immediate */
-/*     switch(state->cpu->stall_cycles) { */
-/*     case 1: */
-/*       operand = read_mem_byte(state, state->cpu->registers->PC); */
-/*       state->cpu->registers->X = operand; */
-/*       state->cpu->registers->PC += 1; */
-/*       if (operand == 0) { set_zero_flag(state); } */
-/*       break; */
-/*     } */
-/*   } */
-/* } */
-
-
-/* void exec_STX(nes_state *state) { */
-/*   uint8_t operand; */
-/*   switch (state->cpu->current_opcode) { */
-/*   case 0x86: // STX Zero page */
-
-/*     /\*     Write instructions (STA, STX, STY, SAX) *\/ */
-
-/*     /\* #  address R/W description *\/ */
-/*     /\*       --- ------- --- ------------------------------------------ *\/ */
-/*     /\*       1    PC     R  fetch opcode, increment PC *\/ */
-/*     /\*       2    PC     R  fetch address, increment PC *\/ */
-/*     /\*       3  address  W  write register to effective address *\/ */
-/*     switch(state->cpu->stall_cycles) { */
-/*     case 2: */
-/*       state->cpu->registers->PC += 1; */
-/*       break; */
-/*     case 1: */
-/*       operand = read_mem_byte(state, state->cpu->registers->PC-2); */
-/*       state->memory[operand] = state->cpu->registers->X; */
-/*       break; */
-/*     } */
-/*   } */
-/* } */
-
-
-/* void exec_FLAGS(nes_state *state) { */
-/*   switch(state->cpu->current_opcode) { */
-/*     // SEC - Set Carry Flag */
-/*   case 0x38: */
-/*     switch(state->cpu->stall_cycles) { */
-/*     case 1: */
-/*       set_carry_flag(state); */
-/*       break; */
-/*     } */
-/*     break; */
-
-/*   } */
-
-/* } */
-
-/* void exec_BRANCH(nes_state *state) { */
-/*   uint8_t operand; */
-// See this page: http://www.6502.org/tutorials/6502opcodes.html#BCS
-/* MNEMONIC                       HEX */
-/*   BPL (Branch on PLus)           $10 */
-/*   BMI (Branch on MInus)          $30 */
-/*   BVC (Branch on oVerflow Clear) $50 */
-/*   BVS (Branch on oVerflow Set)   $70 */
-/*   BCC (Branch on Carry Clear)    $90 */
-/*   BCS (Branch on Carry Set)      $B0 */
-/*   BNE (Branch on Not Equal)      $D0 */
-/*   BEQ (Branch on EQual)          $F0 */
-/*   Relative addressing (BCC, BCS, BNE, BEQ, BPL, BMI, BVC, BVS) */
-
-/* #   address  R/W description */
-/*     --- --------- --- --------------------------------------------- */
-/*     1     PC      R  fetch opcode, increment PC */
-/*     2     PC      R  fetch operand, increment PC */
-/*     3     PC      R  Fetch opcode of next instruction, */
-/*     If branch is taken, add operand to PCL. */
-/*     Otherwise increment PC. */
-/*     4+    PC*     R  Fetch opcode of next instruction. */
-/*     Fix PCH. If it did not change, increment PC. */
-/*     5!    PC      R  Fetch opcode of next instruction, */
-/*     increment PC. */
-
-/*     Notes: The opcode fetch of the next instruction is included to */
-/*     this diagram for illustration purposes. When determining */
-/*     real execution times, remember to subtract the last */
-/*     cycle. */
-/*          * The high byte of Program Counter (PCH) may be invalid */
-/*             at this time, i.e. it may be smaller or bigger by $100. */
-/*          + If branch is taken, this cycle will be executed. */
-/*          ! If branch occurs to different page, this cycle will be */
-/*            executed. */
-/*   switch(state->cpu->current_opcode) { */
-/*     // BCS - Branch on Carry Set */
-/*   case 0xB0: */
-/*     switch(state->cpu->stall_cycles) { */
-/*       // Still not sure how to handle all of this branching stuff with extra cycles. */
-/*     case 1: */
-/*       operand = read_mem_byte(state, state->cpu->registers->PC); */
-/*       state->cpu->registers->PC++; */
-/*       break; */
-
-/*     } */
-/*   } */
-/* } */
-
-
-/* void exec_opcode(nes_state *state) { */
-/*   // Terrible, but good enough for now. */
-/*   switch(state->cpu->current_opcode) { */
-/*   case 0x38: */
-/*     exec_FLAGS(state); */
-/*     break; */
-/*     // JSR */
-/*   case 0x20: */
-/*     // JMP Absolute */
-/*   case 0x4c: */
-/*     exec_JMP(state); */
-/*     break; */
-/*   case 0xa2: */
-/*     exec_LDX(state); */
-/*     break; */
-/*   case 0x86: */
-/*     exec_STX(state); */
-/*     break; */
-/*   default: */
-/*     printf("Opcode 0x%02x not implemented.\n", state->cpu->current_opcode); */
-
-/*   } */
-/* } */
-
-/* int cycles_for_opcode(nes_state *state) { //uint8_t opcode) { */
-/*   // In general an instruction takes 2 cycles. The first cycle is already handled, so default is 1. */
-/*   uint8_t cycles = 1; */
-/*   // TODO - Replace with table/array? */
-/*   switch(state->cpu->current_opcode) { */
-/*     // JSR */
-/*   case 0x20: */
-/*     cycles = 5; */
-/*     break; */
-/*     // SEC - Set carry flag */
-/*   case 0x38: */
-/*     cycles = 1; */
-/*     break; */
-/*   case 0xa2: */
-  /*     cycles = 1; */
-  /*     break; */
-  /*   case 0x4c: */
-  /*     cycles = 2; */
-  /*     break; */
-  /*   case 0x86: */
-  /*     cycles = 2; */
-  /*     break; */
-  /*     // BCS - Branch if Carry Set */
-  /*   case 0xB0: */
-  /*     if (is_carry_flag_set(state)) { */
-  /*       cycles++; */
-  /*       // If a page boundary is crossed, add another cycle */
-  /*       /\* if () {} *\/ */
-  /*     } */
-
-  /*     break; */
-
-  /*   } */
-  /*   return cycles; */
-  /* } */
-
-
-
-
-  // Instructions take 2-7 cycles.
-  // Each cycle is either a READ or a WRITE cycle - never both
-  // an instruction is a set of "actions" executed serially
-
-
-  // Some example actions
-  /*       1    PC     R  fetch opcode, increment PC */
-  /*       2    PC     R  fetch low address byte, increment PC */
-  /*       3    PC     R  copy low address byte to PCL, fetch high address */
-  /*       byte to PCH */
-
-
-
-
+// Some example actions
+/*       1    PC     R  fetch opcode, increment PC */
+/*       2    PC     R  fetch low address byte, increment PC */
+/*       3    PC     R  copy low address byte to PCL, fetch high address */
+/*       byte to PCH */
 void execute_next_action(nes_state *state) {
   switch (state->cpu->action_queue[state->cpu->next_action]) {
-      // Dummy cycle, "do nothing"
+    // Dummy cycle, "do nothing"
   case 0:
     break;
-      /* R fetch opcode, increment PC - first cycle in all instructions*/
+    /* R fetch opcode, increment PC - first cycle in all instructions*/
   case 1:
     state->cpu->current_opcode = read_mem_byte(state, state->cpu->registers->PC);
     state->cpu->registers->PC++;
     break;
-      /* R  fetch low address byte, increment PC */
+    /* R  fetch low address byte, increment PC */
   case 2:
     state->cpu->low_addr_byte = read_mem_byte(state, state->cpu->registers->PC);
     state->cpu->registers->PC++;
     break;
-      /* R  copy low address byte to PCL, fetch high address byte to PCH */
+    /* R  copy low address byte to PCL, fetch high address byte to PCH */
   case 3:
     // Read the high address first to avoid overwriting PC (having to store it)
     state->cpu->high_addr_byte = read_mem_byte(state, state->cpu->registers->PC);
@@ -557,14 +282,14 @@ void execute_next_action(nes_state *state) {
     break;
 
     /* add operand to PCL. */
-    case 10:
-      state->cpu->registers->PC += state->cpu->operand;
-      break;
+  case 10:
+    state->cpu->registers->PC += state->cpu->operand;
+    break;
     /* increment PC. */
-    case 11:
-      state->cpu->registers->PC++;
-      break;
-      // clear carry flag
+  case 11:
+    state->cpu->registers->PC++;
+    break;
+    // clear carry flag
   case 12:
     clear_carry_flag(state);
     break;
@@ -574,9 +299,9 @@ void execute_next_action(nes_state *state) {
     {
       uint8_t value = read_mem_byte(state, state->cpu->low_addr_byte);
       if ((value & state->cpu->registers->ACC) == 0) { set_zero_flag(state); }
-    else { clear_zero_flag(state); }
-    if ((value & 128) == 128) { set_negative_flag(state); } else {clear_negative_flag(state); }
-    if ((value & 64) == 64) { set_overflow_flag(state); } else {clear_overflow_flag(state); }
+      else { clear_zero_flag(state); }
+      if ((value & 128) == 128) { set_negative_flag(state); } else {clear_negative_flag(state); }
+      if ((value & 64) == 64) { set_overflow_flag(state); } else {clear_overflow_flag(state); }
     }
     break;
     // Increment S (stack pointer)
@@ -623,7 +348,7 @@ void execute_next_action(nes_state *state) {
     // Push Status register to stack, decrement S
   case 20:
     /* See this note about the B flag for explanation of the OR */
-/* https://wiki.nesdev.com/w/index.php/Status_flags#The_B_flag */
+    /* https://wiki.nesdev.com/w/index.php/Status_flags#The_B_flag */
     state->memory[state->cpu->registers->SP + 0x100] = 48 | state->cpu->registers->SR;
     state->cpu->registers->SP--;
     break;
@@ -637,16 +362,16 @@ void execute_next_action(nes_state *state) {
       state->cpu->registers->ACC = res;
       state->cpu->registers->PC++;
     }
-      break;
-      // CMP immediate
+    break;
+    // CMP immediate
   case 22:
-        {
-          uint8_t acc = state->cpu->registers->ACC;
-          uint8_t value = read_mem_byte(state, state->cpu->registers->PC);
-          uint8_t res = acc - value;
+    {
+      uint8_t acc = state->cpu->registers->ACC;
+      uint8_t value = read_mem_byte(state, state->cpu->registers->PC);
+      uint8_t res = acc - value;
       /* http://www.6502.org/tutorials/6502opcodes.html#CMP */
       /* Compare sets flags as if a subtraction had been carried out. */
-   /* If the value in the accumulator is equal or greater than the compared value, */
+      /* If the value in the accumulator is equal or greater than the compared value, */
       /* the Carry will be set. */
       /* The equal (Z) and negative (N) flags will be set based on equality or lack */
       /* thereof and the sign (i.e. A>=$80) of the accumulator. */
@@ -666,7 +391,7 @@ void execute_next_action(nes_state *state) {
       state->cpu->registers->ACC = res;
       state->cpu->registers->PC++;
     }
-      break;
+    break;
     // EOR immediate, increment PC
   case 24:
     {
@@ -676,7 +401,7 @@ void execute_next_action(nes_state *state) {
       state->cpu->registers->ACC = res;
       state->cpu->registers->PC++;
     }
-      break;
+    break;
     // ADC immediate, increment PC
   case 25:
     {
@@ -693,71 +418,181 @@ void execute_next_action(nes_state *state) {
       state->cpu->registers->ACC = (uint8_t) res;
       state->cpu->registers->PC++;
     }
-      break;
-      // clear carry flag
+    break;
+
+    // CPY Immediate
+  case 26:
+    {
+      uint8_t y = state->cpu->registers->Y;
+      uint8_t value = read_mem_byte(state, state->cpu->registers->PC);
+      uint8_t res = y - value;
+      /* http://www.6502.org/tutorials/6502opcodes.html#CMP */
+      /* Compare sets flags as if a subtraction had been carried out. */
+      /* If the value in the accumulator is equal or greater than the compared value, */
+      /* the Carry will be set. */
+      /* The equal (Z) and negative (N) flags will be set based on equality or lack */
+      /* thereof and the sign (i.e. A>=$80) of the accumulator. */
+      if (y == value) { set_zero_flag(state); } else { clear_zero_flag(state); }
+      if (y >= value) { set_carry_flag(state); } else { clear_carry_flag(state); }
+      if (res >= 0x80)  { set_negative_flag(state); } else { clear_negative_flag(state); }
+      state->cpu->registers->PC++;
+    }
+
+    break;
+
+    // CPX Immediate
+  case 27:
+    {
+      uint8_t x = state->cpu->registers->X;
+      uint8_t value = read_mem_byte(state, state->cpu->registers->PC);
+      uint8_t res = x - value;
+      /* http://www.6502.org/tutorials/6502opcodes.html#CMP */
+      /* Compare sets flags as if a subtraction had been carried out. */
+      /* If the value in the accumulator is equal or greater than the compared value, */
+      /* the Carry will be set. */
+      /* The equal (Z) and negative (N) flags will be set based on equality or lack */
+      /* thereof and the sign (i.e. A>=$80) of the accumulator. */
+      if (x == value) { set_zero_flag(state); } else { clear_zero_flag(state); }
+      if (x >= value) { set_carry_flag(state); } else { clear_carry_flag(state); }
+      if (res >= 0x80)  { set_negative_flag(state); } else { clear_negative_flag(state); }
+      state->cpu->registers->PC++;
+    }
+
+    break;
+
+    // SBC immediate, increment PC
+  case 28:
+    {
+      uint8_t acc = state->cpu->registers->ACC;
+      // The only difference between ADC and SBC should be that SBC "complements" (negates) it's argument
+      uint8_t value = ~read_mem_byte(state, state->cpu->registers->PC);
+      uint16_t res = ((uint16_t) acc) + ((uint16_t) value);
+      if (is_carry_flag_set(state)) { res++; }
+      if ((uint8_t) res == 0) { set_zero_flag(state); } else { clear_zero_flag(state); }
+      if ((res & 128) == 128) { set_negative_flag(state); } else { clear_negative_flag(state); }
+      if (res > 255) { set_carry_flag(state);} else { clear_carry_flag(state); }
+      if ((acc ^ (uint8_t) res) & (value ^ (uint8_t) res) & 0x80)
+        {    set_overflow_flag(state); }
+      else { clear_overflow_flag(state);}
+      state->cpu->registers->ACC = (uint8_t) res;
+      state->cpu->registers->PC++;
+    }
+    break;
+
+    // clear carry flag
   case 90:
     clear_carry_flag(state);
     break;
-      // clear zero flag
+    // clear zero flag
   case 91:
     clear_zero_flag(state);
     break;
-      // clear interrupt flag
+    // clear interrupt flag
   case 92:
     clear_interrupt_flag(state);
     break;
-      // clear decimal flag
+    // clear decimal flag
   case 93:
     clear_decimal_flag(state);
     break;
-      // clear break flag
+    // clear break flag
   case 94:
     clear_break_flag(state);
     break;
-      // clear overflow flag
+    // clear overflow flag
   case 96:
     clear_overflow_flag(state);
     break;
-      // clear negative flag
+    // clear negative flag
   case 97:
     clear_negative_flag(state);
     break;
-      // set carry flag
+    // set carry flag
   case 100:
     set_carry_flag(state);
     break;
-      // set zero flag
+    // set zero flag
   case 101:
     set_zero_flag(state);
     break;
-      // set interrupt flag
+    // set interrupt flag
   case 102:
     set_interrupt_flag(state);
     break;
-      // set decimal flag
+    // set decimal flag
   case 103:
     set_decimal_flag(state);
     break;
-      // set break flag
+    // set break flag
   case 104:
     set_break_flag(state);
     break;
-      // set overflow flag
+    // set overflow flag
   case 106:
     set_overflow_flag(state);
     break;
-      // set negative flag
+    // set negative flag
   case 107:
     set_negative_flag(state);
     break;
 
+    // Increment source register
+  case 200:
+    (*state->cpu->source_reg)++;
+    if (*state->cpu->source_reg == 0) { set_zero_flag(state); } else { clear_zero_flag(state); }
+    if (*state->cpu->source_reg & 0x80) { set_negative_flag(state); } else { clear_negative_flag(state); }
+    break;
+    // Decrement source register
+  case 201:
+    (*state->cpu->source_reg)--;
+    if (*state->cpu->source_reg == 0) { set_zero_flag(state); } else { clear_zero_flag(state); }
+    if (*state->cpu->source_reg & 0x80) { set_negative_flag(state); } else { clear_negative_flag(state); }
+    break;
+    // Copy source_reg to destination_reg, affect N,Z flags
+  case 202:
+    (*state->cpu->destination_reg) = (*state->cpu->source_reg);
+    if (*state->cpu->destination_reg == 0) { set_zero_flag(state); } else { clear_zero_flag(state); }
+    if (*state->cpu->destination_reg & 0x80) { set_negative_flag(state); } else { clear_negative_flag(state); }
+    break;
+    // Copy source_reg to destination_reg, affect no flags
+  case 203:
+    (*state->cpu->destination_reg) = (*state->cpu->source_reg);
+    break;
+
+    // Fetch low byte of address, increment PC
+  case 300:
+    state->cpu->low_addr_byte = read_mem_byte(state, state->cpu->registers->PC);
+    state->cpu->registers->PC++;
+    break;
+    // Fetch high byte of address, increment PC
+  case 301:
+    state->cpu->high_addr_byte = read_mem_byte(state, state->cpu->registers->PC);
+    state->cpu->registers->PC++;
+    break;
+    // Write register to effective address
+  case 302:
+    {
+      uint16_t addr = state->cpu->high_addr_byte << 8 | state->cpu->low_addr_byte;
+      state->memory[addr] = (*state->cpu->source_reg);
     }
+    break;
+    // Read from effective address, store in register, affect N,Z flags
+  case 303:
+    {
+      uint16_t addr = state->cpu->high_addr_byte << 8 | state->cpu->low_addr_byte;
+      (*state->cpu->destination_reg) = read_mem_byte(state, addr);
+      if (*state->cpu->destination_reg == 0) { set_zero_flag(state); } else { clear_zero_flag(state); }
+      if (*state->cpu->destination_reg & 0x80) { set_negative_flag(state); } else { clear_negative_flag(state); }
+    }
+    break;
+
+  }
 
   state->cpu->next_action++;
   if (state->cpu->next_action > 9) { state->cpu->next_action = 0; }
 }
 
-void add_action_to_queue(nes_state *state, uint8_t action) {
+void add_action_to_queue(nes_state *state, uint16_t action) {
   state->cpu->action_queue[state->cpu->end_of_queue] = action;
   state->cpu->end_of_queue++;
   if (state->cpu->end_of_queue > 9) {   state->cpu->end_of_queue = 0; }
@@ -909,6 +744,27 @@ void add_instruction_to_queue(nes_state *state) {
     add_action_to_queue(state, 2);
     add_action_to_queue(state, 5);
     break;
+    // DEC - Decrement Y register
+  case 0x88:
+    state->cpu->source_reg = &state->cpu->registers->Y;
+    add_action_to_queue(state, 201);
+    break;
+    // STX Absolute
+  case 0x8E:
+    state->cpu->source_reg = &state->cpu->registers->X;
+    /*       2    PC     R  fetch low byte of address, increment PC */
+    add_action_to_queue(state, 300);
+    /*       3    PC     R  fetch high byte of address, increment PC */
+    add_action_to_queue(state, 301);
+    /*       4  address  W  write register to effective address */
+    add_action_to_queue(state, 302);
+    break;
+    // TXA
+  case 0x8A:
+    state->cpu->source_reg = &state->cpu->registers->X;
+    state->cpu->destination_reg = &state->cpu->registers->ACC;
+    add_action_to_queue(state, 202);
+    break;
     // BCC - Branch Carry Clear
   case 0x90:
     add_action_to_queue(state, 9);
@@ -917,15 +773,75 @@ void add_instruction_to_queue(nes_state *state) {
     }
     // TODO : Add extra action for crossing page boundary
     break;
+    // TYA
+  case 0x98:
+    state->cpu->source_reg = &state->cpu->registers->Y;
+    state->cpu->destination_reg = &state->cpu->registers->ACC;
+    add_action_to_queue(state, 202);
+    break;
+    // TXS - Transfer X to Stack Pointer, affect no flags
+  case 0x9A:
+    state->cpu->source_reg = &state->cpu->registers->X;
+    state->cpu->destination_reg = &state->cpu->registers->SP;
+    add_action_to_queue(state, 203);
+    break;
+    // LDY Immediate
+  case 0xA0:
+    state->cpu->destination_reg = &state->cpu->registers->Y;
+    add_action_to_queue(state, 4);
+    break;
+
     // LDX Immediate
   case 0xA2:
     state->cpu->destination_reg = &state->cpu->registers->X;
     add_action_to_queue(state, 4);
     break;
-    // LDX Immediate
+    // TAY
+  case 0xA8:
+    state->cpu->source_reg = &state->cpu->registers->ACC;
+    state->cpu->destination_reg = &state->cpu->registers->Y;
+    add_action_to_queue(state, 202);
+    break;
+    // LDA Immediate
   case 0xA9:
     state->cpu->destination_reg = &state->cpu->registers->ACC;
     add_action_to_queue(state, 4);
+    break;
+    // TAX
+  case 0xAA:
+    state->cpu->source_reg = &state->cpu->registers->ACC;
+    state->cpu->destination_reg = &state->cpu->registers->X;
+    add_action_to_queue(state, 202);
+    break;
+    // LDA Absolute
+  case 0xAD:
+    state->cpu->destination_reg = &state->cpu->registers->ACC;
+    add_action_to_queue(state, 300);
+    add_action_to_queue(state, 301);
+    // Read from effective address, copy to register
+    add_action_to_queue(state, 303);
+    break;
+    // LDX Absolute
+  case 0xAE:
+    state->cpu->destination_reg = &state->cpu->registers->X;
+    add_action_to_queue(state, 300);
+    add_action_to_queue(state, 301);
+    // Read from effective address, copy to register
+    add_action_to_queue(state, 303);
+    break;
+    // TSX - Transfer SP to X
+  case 0xBA:
+    state->cpu->source_reg = &state->cpu->registers->SP;
+    state->cpu->destination_reg = &state->cpu->registers->X;
+    add_action_to_queue(state, 202);
+    break;
+    // CPY Immediate
+  case 0xC0:
+    add_action_to_queue(state, 26);
+    break;
+    // CPX Immediate
+  case 0xE0:
+    add_action_to_queue(state, 27);
     break;
     // NOP
   case 0xEA:
@@ -943,9 +859,19 @@ void add_instruction_to_queue(nes_state *state) {
   case 0xB8:
     add_action_to_queue(state, 96);
     break;
+    // INY - Increment Y register
+  case 0xC8:
+    state->cpu->source_reg = &state->cpu->registers->Y;
+    add_action_to_queue(state, 200);
+    break;
     // CMP Acc immediate
   case 0xC9:
     add_action_to_queue(state, 22);
+    break;
+    // DEX - Decrement X register
+  case 0xCA:
+    state->cpu->source_reg = &state->cpu->registers->X;
+    add_action_to_queue(state, 201);
     break;
     // BNE
   case 0xD0:
@@ -958,6 +884,17 @@ void add_instruction_to_queue(nes_state *state) {
     // CLD - Clear Decimal Flag
   case 0xD8:
     add_action_to_queue(state, 93);
+    break;
+    // INX - Decrement X register
+  case 0xE8:
+    state->cpu->source_reg = &state->cpu->registers->X;
+    add_action_to_queue(state, 200);
+    break;
+    // SBC Immediate
+  case 0xE9:
+    // SBC Immediate (Illegal opcode)
+  case 0xEB:
+    add_action_to_queue(state, 28);
     break;
     // BEQ
   case 0xF0:

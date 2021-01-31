@@ -24,7 +24,7 @@ typedef struct CPU_STATE {
   uint16_t current_opcode_PC;
   uint64_t cpu_cycle;
   uint8_t stall_cycles;
-  uint8_t action_queue[10];
+  uint16_t action_queue[10];
   uint8_t next_action;
   uint8_t end_of_queue;
 } cpu_state;
