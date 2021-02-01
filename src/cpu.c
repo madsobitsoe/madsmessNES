@@ -702,14 +702,7 @@ void execute_next_action(nes_state *state) {
     {
       uint16_t addr = state->cpu->high_addr_byte << 8 | state->cpu->low_addr_byte;
       uint8_t value = read_mem_byte(state, addr);
-      /* printf("In cycle: %llu\n", state->cpu->cpu_cycle); */
-      /* printf("operand: %02X, low: %02X, high: %02X\n", state->cpu->operand, state->cpu->low_addr_byte, state->cpu->high_addr_byte); */
-      /* printf("Writing %02X from Eff addr: %04X\n", value, addr); */
-      /* printf("!!dest_reg_before == %02X\n", *state->cpu->destination_reg); */
       (*state->cpu->destination_reg) = value;
-      /* printf("!!dest_reg_after == %02X\n", *state->cpu->destination_reg); */
-      /* printf("!!ACC after == %02X\n", state->cpu->registers->ACC); */
-      /* printf("ACC addr: %p\tdest_reg_addr: %p\n", &state->cpu->registers->ACC, state->cpu->destination_reg); */
       if (value == 0) { set_zero_flag(state); } else { clear_zero_flag(state); }
       if (value & 0x80) { set_negative_flag(state); } else { clear_negative_flag(state); }
     }
@@ -722,12 +715,12 @@ void execute_next_action(nes_state *state) {
     // Fetch effective address low
   case 305:
     state->cpu->low_addr_byte = read_mem_byte(state, (uint16_t) state->cpu->operand);
-    /* printf("new low addr: %02X\n", (uint16_t) state->cpu->low_addr_byte); */
+
     break;
     // Fetch effective address high
   case 306:
     state->cpu->high_addr_byte = read_mem_byte(state, (uint16_t) ((uint16_t) state->cpu->operand+1) & 0xff);
-    /* printf("new high addr: %02X\n", (uint16_t) state->cpu->high_addr_byte); */
+
     break;
 
     // Fetch zeropage pointer address, store pointer in "operand", increment PC
@@ -746,7 +739,7 @@ void execute_next_action(nes_state *state) {
       if ((state->memory[addr]) & 0x80) { set_negative_flag(state); } else { clear_negative_flag(state); }
     }
     break;
-    // Increment memory
+    // Decrement memory
   case 309:
     {
       uint16_t addr = ((uint16_t) state->cpu->high_addr_byte) << 8 | (uint16_t) state->cpu->low_addr_byte;
@@ -800,7 +793,7 @@ void execute_next_action(nes_state *state) {
       state->cpu->registers->ACC = newacc;
     }
     break;
-    // LSR Memory
+    // LSR (reg and zero-page Memory)
   case 404:
     if (*state->cpu->source_reg & 0x1) { set_carry_flag(state); }
     else { clear_carry_flag(state); }
@@ -808,7 +801,7 @@ void execute_next_action(nes_state *state) {
     clear_negative_flag(state);
     if (*state->cpu->source_reg != 0) { clear_zero_flag(state); } else { set_zero_flag(state); }
     break;
-    // ASL Memory
+    // ASL source-reg
   case 405:
     if (*state->cpu->source_reg & 0x80) { set_carry_flag(state); }
     else { clear_carry_flag(state); }
@@ -818,7 +811,7 @@ void execute_next_action(nes_state *state) {
     }
     if (*state->cpu->source_reg != 0) { clear_zero_flag(state); } else { set_zero_flag(state); }
     break;
-    // ROR Mem
+    // ROR source-reg (zeropage)
   case 406:
     {
       uint8_t newval = *state->cpu->source_reg;
@@ -831,7 +824,7 @@ void execute_next_action(nes_state *state) {
       *state->cpu->source_reg = newval;
     }
     break;
-    // ROL Memory
+    // ROL source_reg
   case 407:
     {
       uint8_t newacc = *state->cpu->source_reg;
@@ -843,6 +836,63 @@ void execute_next_action(nes_state *state) {
       if (msb) { set_carry_flag(state); } else { clear_carry_flag(state); }
       if (newacc == 0) { set_zero_flag(state); } else { clear_zero_flag(state); }
       *state->cpu->source_reg = newacc;
+    }
+    break;
+    // LSR (memory)
+  case 408:
+    {
+      uint16_t addr = ((uint16_t) state->cpu->high_addr_byte) << 8 | (uint16_t)state->cpu->low_addr_byte;
+      uint8_t value = read_mem_byte(state, addr);
+    if (value & 0x1) { set_carry_flag(state); }
+    else { clear_carry_flag(state); }
+    value = value >> 1;
+    clear_negative_flag(state);
+    if (value != 0) { clear_zero_flag(state); } else { set_zero_flag(state); }
+    state->memory[addr] = value;
+    }
+    break;
+    // ASL memory
+  case 409:
+    {
+      uint16_t addr = ((uint16_t) state->cpu->high_addr_byte) << 8 | (uint16_t)state->cpu->low_addr_byte;
+      uint8_t value = read_mem_byte(state, addr);
+    if (value & 0x80) { set_carry_flag(state); }
+    else { clear_carry_flag(state); }
+    value = value << 1;
+    if (value & 0x80) { set_negative_flag(state); } else {
+      clear_negative_flag(state);
+    }
+    if (value != 0) { clear_zero_flag(state); } else { set_zero_flag(state); }
+    state->memory[addr] = value;
+    }
+    break;
+    // ROR Memory
+  case 410:
+    {
+      uint16_t addr = ((uint16_t) state->cpu->high_addr_byte) << 8 | (uint16_t)state->cpu->low_addr_byte;
+      uint8_t value = read_mem_byte(state, addr);
+      bool carry = is_carry_flag_set(state);
+      uint8_t lsb = value & 1;
+      value = value >> 1;
+      if (carry) { value |= 0x80; set_negative_flag(state); } else { clear_negative_flag(state); }
+      if (lsb) { set_carry_flag(state); } else { clear_carry_flag(state); }
+      if (value == 0) { set_zero_flag(state); } else { clear_zero_flag(state); }
+      state->memory[addr] = value;
+    }
+    break;
+    // ROL Memory
+  case 411:
+    {
+      uint16_t addr = ((uint16_t) state->cpu->high_addr_byte) << 8 | (uint16_t)state->cpu->low_addr_byte;
+      uint8_t value = read_mem_byte(state, addr);
+      bool carry = is_carry_flag_set(state);
+      uint8_t msb = value & 0x80;
+      value = value << 1;
+      if (carry) { value |= 0x1; }
+      if (value & 0x80 ) { set_negative_flag(state); } else { clear_negative_flag(state); }
+      if (msb) { set_carry_flag(state); } else { clear_carry_flag(state); }
+      if (value == 0) { set_zero_flag(state); } else { clear_zero_flag(state); }
+      state->memory[addr] = value;
     }
     break;
 
@@ -930,6 +980,21 @@ void add_instruction_to_queue(nes_state *state) {
     add_action_to_queue(state, 301);
     // Read from effective address, copy to register
     add_action_to_queue(state, 30);
+    break;
+    // ASL Absolute
+  case 0x0E:
+ /* 2    PC     R  fetch low byte of address, increment PC */
+    add_action_to_queue(state, 300);
+ /*        3    PC     R  fetch high byte of address, increment PC */
+    add_action_to_queue(state, 301);
+ /*        4  address  R  read from effective address */
+    add_action_to_queue(state, 0); // Stall
+ /*        5  address  W  write the value back to effective address, */
+    add_action_to_queue(state, 0); // Stall
+    /*                       and do the operation on it */
+
+ /*        6  address  W  write the new value to effective address */
+    add_action_to_queue(state, 409);
     break;
     // BPL - Branch Result Plus
   case 0x10:
@@ -1040,7 +1105,20 @@ void add_instruction_to_queue(nes_state *state) {
     // Read from effective address, copy to register
     add_action_to_queue(state, 31);
     break;
-
+    // ROL Absolute
+  case 0x2E:
+ /* 2    PC     R  fetch low byte of address, increment PC */
+    add_action_to_queue(state, 300);
+ /*        3    PC     R  fetch high byte of address, increment PC */
+    add_action_to_queue(state, 301);
+ /*        4  address  R  read from effective address */
+    add_action_to_queue(state, 0); // Stall
+ /*        5  address  W  write the value back to effective address, */
+    add_action_to_queue(state, 0); // Stall
+    /*                       and do the operation on it */
+ /*        6  address  W  write the new value to effective address */
+    add_action_to_queue(state, 411);
+    break;
     // BMI - Branch Result Minus
   case 0x30:
     add_action_to_queue(state, 9);
@@ -1147,6 +1225,23 @@ void add_instruction_to_queue(nes_state *state) {
     // Read from effective address, copy to register
     add_action_to_queue(state, 32);
     break;
+    // LSR Absolute
+  case 0x4E:
+
+
+ /* 2    PC     R  fetch low byte of address, increment PC */
+    add_action_to_queue(state, 300);
+ /*        3    PC     R  fetch high byte of address, increment PC */
+    add_action_to_queue(state, 301);
+ /*        4  address  R  read from effective address */
+    add_action_to_queue(state, 0); // Stall
+ /*        5  address  W  write the value back to effective address, */
+    add_action_to_queue(state, 0); // Stall
+    /*                       and do the operation on it */
+
+ /*        6  address  W  write the new value to effective address */
+    add_action_to_queue(state, 408);
+    break;
 
     // BVC - Branch Overflow clear
   case 0x50:
@@ -1246,6 +1341,21 @@ add_action_to_queue(state, 15);
     add_action_to_queue(state, 301);
     // Read from effective address, copy to register
     add_action_to_queue(state, 33);
+    break;
+    // ROR Absolute
+  case 0x6E:
+ /* 2    PC     R  fetch low byte of address, increment PC */
+    add_action_to_queue(state, 300);
+ /*        3    PC     R  fetch high byte of address, increment PC */
+    add_action_to_queue(state, 301);
+ /*        4  address  R  read from effective address */
+    add_action_to_queue(state, 0); // Stall
+ /*        5  address  W  write the value back to effective address, */
+    add_action_to_queue(state, 0); // Stall
+    /*                       and do the operation on it */
+
+ /*        6  address  W  write the new value to effective address */
+    add_action_to_queue(state, 410);
     break;
 
     // BVS - Branch Overflow Set
@@ -1571,6 +1681,14 @@ add_action_to_queue(state, 15);
     state->cpu->source_reg = &state->cpu->registers->X;
     add_action_to_queue(state, 201);
     break;
+    // CPY Absolute
+  case 0xCC:
+    state->cpu->source_reg = &state->cpu->registers->Y;
+    add_action_to_queue(state, 300);
+    add_action_to_queue(state, 301);
+    // Read from effective address, copy to register
+    add_action_to_queue(state, 34);
+    break;
     // CMP Absolute
   case 0xCD:
     state->cpu->source_reg = &state->cpu->registers->ACC;
@@ -1578,6 +1696,20 @@ add_action_to_queue(state, 15);
     add_action_to_queue(state, 301);
     // Read from effective address, copy to register
     add_action_to_queue(state, 34);
+    break;
+    // DEC Absolute
+  case 0xCE:
+ /* 2    PC     R  fetch low byte of address, increment PC */
+    add_action_to_queue(state, 300);
+ /*        3    PC     R  fetch high byte of address, increment PC */
+    add_action_to_queue(state, 301);
+    /*        4  address  R  read from effective address */
+    add_action_to_queue(state, 0); // Stall, no need to read
+ /*        5  address  W  write the value back to effective address, */
+ /*                       and do the operation on it */
+    add_action_to_queue(state, 0); // Stall, no need to read
+ /*        6  address  W  write the new value to effective address */
+    add_action_to_queue(state, 309);
     break;
     // BNE
   case 0xD0:
@@ -1661,6 +1793,14 @@ add_action_to_queue(state, 15);
   case 0xEB:
     add_action_to_queue(state, 28);
     break;
+    // CPX Absolute
+  case 0xEC:
+    state->cpu->source_reg = &state->cpu->registers->X;
+    add_action_to_queue(state, 300);
+    add_action_to_queue(state, 301);
+    // Read from effective address, copy to register
+    add_action_to_queue(state, 34);
+    break;
     // SBC Absolute
   case 0xED:
     state->cpu->source_reg = &state->cpu->registers->ACC;
@@ -1668,6 +1808,20 @@ add_action_to_queue(state, 15);
     add_action_to_queue(state, 301);
     // Read from effective address, copy to register
     add_action_to_queue(state, 35);
+    break;
+    // INC Absolute
+  case 0xEE:
+ /* 2    PC     R  fetch low byte of address, increment PC */
+    add_action_to_queue(state, 300);
+ /*        3    PC     R  fetch high byte of address, increment PC */
+    add_action_to_queue(state, 301);
+    /*        4  address  R  read from effective address */
+    add_action_to_queue(state, 0); // Stall, no need to read
+ /*        5  address  W  write the value back to effective address, */
+ /*                       and do the operation on it */
+    add_action_to_queue(state, 0); // Stall, no need to read
+ /*        6  address  W  write the new value to effective address */
+    add_action_to_queue(state, 308);
     break;
     // BEQ
   case 0xF0:
