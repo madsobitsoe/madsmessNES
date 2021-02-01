@@ -803,6 +803,16 @@ void add_instruction_to_queue(nes_state *state) {
     /*   6    address    W  write ACC to effective address */
     add_action_to_queue(state, 30);
     break;
+    // ORA Zero page
+  case 0x05:
+    // Clear out high addr byte, to ensure zero-page read
+    state->cpu->high_addr_byte = 0x0;
+    state->cpu->destination_reg = &state->cpu->registers->ACC;
+    /* 2    PC     R  fetch address, increment PC */
+    add_action_to_queue(state, 2);
+    /*       3  address  R  read from effective address */
+    add_action_to_queue(state, 30);
+    break;
     // PHP - Push Processor Status on stack
   case 0x08:
     /* 2    PC     R  read next instruction byte (and throw it away) */
@@ -866,6 +876,16 @@ void add_instruction_to_queue(nes_state *state) {
     add_action_to_queue(state, 2);
     // Read from effective address
     add_action_to_queue(state, 13);
+    break;
+    // AND zeropage
+  case 0x25:
+    // Clear out high addr byte, to ensure zero-page read
+    state->cpu->high_addr_byte = 0x0;
+    state->cpu->destination_reg = &state->cpu->registers->ACC;
+    /* 2    PC     R  fetch address, increment PC */
+    add_action_to_queue(state, 2);
+    /*       3  address  R  read from effective address */
+    add_action_to_queue(state, 31);
     break;
     // PLP - Pull Process Register (flags) from stack
   case 0x28:
@@ -940,7 +960,19 @@ void add_instruction_to_queue(nes_state *state) {
     add_action_to_queue(state, 306);
     /*   6    address    W  write ACC to effective address */
     add_action_to_queue(state, 32);
-    break;    // PHA - Push ACC to stack
+    break;
+    // EOR zeropage
+  case 0x45:
+    // Clear out high addr byte, to ensure zero-page read
+    state->cpu->high_addr_byte = 0x0;
+    state->cpu->destination_reg = &state->cpu->registers->ACC;
+    /* 2    PC     R  fetch address, increment PC */
+    add_action_to_queue(state, 2);
+    /*       3  address  R  read from effective address */
+    add_action_to_queue(state, 32);
+    break;
+
+    // PHA - Push ACC to stack
   case 0x48:
     /* R  read next instruction byte (and throw it away) */
     add_action_to_queue(state, 0);

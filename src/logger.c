@@ -28,6 +28,19 @@ void disass(nes_state *state, char *output) {
               value);
     }
     break;
+    // ORA Zeropage
+  case 0x05:
+    {
+      uint16_t addr = (uint16_t) read_mem_byte(state, state->cpu->current_opcode_PC+1);
+
+      sprintf(output, "%04X  %02X %02X     ORA $%02X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              read_mem_byte(state, state->cpu->current_opcode_PC+1),
+              read_mem_byte(state, state->cpu->current_opcode_PC+1),
+              read_mem_byte(state, addr));
+    }
+    break;
     // PHP
   case 0x08:
     sprintf(output, "%04X  %02X        PHP",
@@ -63,6 +76,19 @@ void disass(nes_state *state, char *output) {
               addr_addr,
               effective_addr,
               value);
+    }
+    break;
+    // AND Zeropage
+  case 0x25:
+    {
+      uint16_t addr = (uint16_t) read_mem_byte(state, state->cpu->current_opcode_PC+1);
+
+      sprintf(output, "%04X  %02X %02X     AND $%02X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              read_mem_byte(state, state->cpu->current_opcode_PC+1),
+              read_mem_byte(state, state->cpu->current_opcode_PC+1),
+              read_mem_byte(state, addr));
     }
     break;
     // SEC
@@ -158,6 +184,19 @@ void disass(nes_state *state, char *output) {
               addr_addr,
               effective_addr,
               value);
+    }
+    break;
+    // EOR Zeropage
+  case 0x45:
+    {
+      uint16_t addr = (uint16_t) read_mem_byte(state, state->cpu->current_opcode_PC+1);
+
+      sprintf(output, "%04X  %02X %02X     EOR $%02X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              read_mem_byte(state, state->cpu->current_opcode_PC+1),
+              read_mem_byte(state, state->cpu->current_opcode_PC+1),
+              read_mem_byte(state, addr));
     }
     break;
     // PHA
