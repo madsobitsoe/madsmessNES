@@ -297,7 +297,8 @@ void execute_next_action(nes_state *state) {
     // The N and V flags are set to match bits 7 and 6 respectively in the value stored at the tested address.
   case 13:
     {
-      uint8_t value = read_mem_byte(state, state->cpu->low_addr_byte);
+      uint16_t addr = ((uint16_t) state->cpu->high_addr_byte) << 8 | (uint16_t) state->cpu->low_addr_byte;
+      uint8_t value = read_mem_byte(state, addr);
       if ((value & state->cpu->registers->ACC) == 0) { set_zero_flag(state); }
       else { clear_zero_flag(state); }
       if ((value & 128) == 128) { set_negative_flag(state); } else {clear_negative_flag(state); }
@@ -967,6 +968,7 @@ void add_instruction_to_queue(nes_state *state) {
     // BIT zero page
   case 0x24:
     // fetch address, increment PC
+    state->cpu->high_addr_byte = 0x0;
     add_action_to_queue(state, 2);
     // Read from effective address
     add_action_to_queue(state, 13);
@@ -1014,6 +1016,15 @@ void add_instruction_to_queue(nes_state *state) {
     state->cpu->source_reg = &state->cpu->registers->ACC;
     add_action_to_queue(state, 407);
     break;
+    // BIT Absolute
+  case 0x2C:
+    /* state->cpu->destination_reg = &state->cpu->registers->Y; */
+    add_action_to_queue(state, 300);
+    add_action_to_queue(state, 301);
+    // Read from effective address, copy to register
+    add_action_to_queue(state, 13);
+    break;
+
 
     // JMP immediate
   case 0x4C:
