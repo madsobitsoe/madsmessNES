@@ -810,6 +810,100 @@ void execute_next_action(nes_state *state) {
     }
     break;
 
+    // ORA read from effective address, "fix high byte" (write to destination_reg)
+  case 314:
+    {
+    uint16_t addr = ((uint16_t) state->cpu->low_addr_byte) | (((uint16_t) state->cpu->high_addr_byte) << 8);
+
+    uint8_t value = (*state->cpu->destination_reg) | read_mem_byte(state, addr);
+    *state->cpu->destination_reg = value;
+    // Set flags for ORA
+      if (value == 0) { set_zero_flag(state); } else { clear_zero_flag(state); }
+      if (value & 0x80) { set_negative_flag(state); } else { clear_negative_flag(state); }
+    }
+    break;
+
+        // AND read from effective address, "fix high byte" (write to destination_reg)
+  case 315:
+    {
+    uint16_t addr = ((uint16_t) state->cpu->low_addr_byte) | (((uint16_t) state->cpu->high_addr_byte) << 8);
+
+    uint8_t value = (*state->cpu->destination_reg) & read_mem_byte(state, addr);
+      *state->cpu->destination_reg = value;
+    // Set flags for AND
+      if (value == 0) { set_zero_flag(state); } else { clear_zero_flag(state); }
+      if (value & 0x80) { set_negative_flag(state); } else { clear_negative_flag(state); }
+    }
+    break;
+    // EOR read from effective address, "fix high byte" (write to destination_reg)
+  case 316:
+    {
+    uint16_t addr = ((uint16_t) state->cpu->low_addr_byte) | (((uint16_t) state->cpu->high_addr_byte) << 8);
+
+    uint8_t value = (*state->cpu->destination_reg) ^ read_mem_byte(state, addr);
+    *state->cpu->destination_reg = value;
+    // Set flags for ORA
+      if (value == 0) { set_zero_flag(state); } else { clear_zero_flag(state); }
+      if (value & 0x80) { set_negative_flag(state); } else { clear_negative_flag(state); }
+    }
+    break;
+
+    // ADC read from effective address, "fix high byte" (write to destination_reg)
+  case 317:
+    {
+      uint8_t acc = *state->cpu->destination_reg;
+      uint16_t addr = ((uint16_t) state->cpu->low_addr_byte) | (((uint16_t) state->cpu->high_addr_byte) << 8);
+      uint8_t value = read_mem_byte(state, addr);
+      uint16_t res = ((uint16_t) acc) + ((uint16_t) value);
+      // Set flags for ADC
+      if (is_carry_flag_set(state)) { res++; }
+      if ((uint8_t) res == 0) { set_zero_flag(state); } else { clear_zero_flag(state); }
+      if ((res & 128) == 128) { set_negative_flag(state); } else { clear_negative_flag(state); }
+      if (res > 255) { set_carry_flag(state);} else { clear_carry_flag(state); }
+      if ((acc ^ (uint8_t) res) & (value ^ (uint8_t) res) & 0x80)
+        {    set_overflow_flag(state); }
+      else { clear_overflow_flag(state);}
+      *state->cpu->destination_reg = (uint8_t) res;
+    }
+    break;
+
+    // CMP read from effective address, "fix high byte" (write to destination_reg)
+  case 318:
+    {
+      uint8_t reg = *state->cpu->destination_reg;
+      uint16_t addr = ((uint16_t) state->cpu->low_addr_byte) | (((uint16_t) state->cpu->high_addr_byte) << 8);
+      uint8_t value = read_mem_byte(state, addr);
+      uint8_t res = reg - value;
+      /* http://www.6502.org/tutorials/6502opcodes.html#CMP */
+      /* Compare sets flags as if a subtraction had been carried out. */
+      /* If the value in the accumulator is equal or greater than the compared value, */
+      /* the Carry will be set. */
+      /* The equal (Z) and negative (N) flags will be set based on equality or lack */
+      /* thereof and the sign (i.e. A>=$80) of the accumulator. */
+      if (reg == value) { set_zero_flag(state); } else { clear_zero_flag(state); }
+      if (reg >= value) { set_carry_flag(state); } else { clear_carry_flag(state); }
+      if (res >= 0x80)  { set_negative_flag(state); } else { clear_negative_flag(state); }
+    }
+      break;
+    // SDC read from effective address, "fix high byte" (write to destination_reg)
+  case 319:
+    {
+      uint8_t acc = *state->cpu->destination_reg;
+      uint16_t addr = ((uint16_t) state->cpu->low_addr_byte) | (((uint16_t) state->cpu->high_addr_byte) << 8);
+      uint8_t value = ~(read_mem_byte(state, addr));
+      uint16_t res = ((uint16_t) acc) + ((uint16_t) value);
+      // Set flags for ADC
+      if (is_carry_flag_set(state)) { res++; }
+      if ((uint8_t) res == 0) { set_zero_flag(state); } else { clear_zero_flag(state); }
+      if ((res & 128) == 128) { set_negative_flag(state); } else { clear_negative_flag(state); }
+      if (res > 255) { set_carry_flag(state);} else { clear_carry_flag(state); }
+      if ((acc ^ (uint8_t) res) & (value ^ (uint8_t) res) & 0x80)
+        {    set_overflow_flag(state); }
+      else { clear_overflow_flag(state);}
+      *state->cpu->destination_reg = (uint8_t) res;
+    }
+    break;
+
     // LSR A
   case 400:
     if (state->cpu->registers->ACC & 0x1) { set_carry_flag(state); }
@@ -1066,6 +1160,36 @@ void add_instruction_to_queue(nes_state *state) {
     }
     // TODO : Add extra action for crossing page boundary
     break;
+
+    // ORA indirect-indexed, Y
+  case 0x11:
+    state->cpu->destination_reg = &state->cpu->registers->ACC;
+  /* #    address   R/W description */
+  /*      --- ----------- --- ------------------------------------------ */
+  /*       1      PC       R  fetch opcode, increment PC */
+  /*       2      PC       R  fetch pointer address, increment PC */
+    add_action_to_queue(state, 307);
+    /* add_action_to_queue(state, 11); // increment PC, nowhere to store pointer */
+  /*       3    pointer    R  fetch effective address low */
+    add_action_to_queue(state, 312);
+  /*       4   pointer+1   R  fetch effective address high, */
+  /*                          add Y to low byte of effective address */
+    add_action_to_queue(state, 313);
+  /*       5   address+Y*  R  read from effective address, */
+  /*                          fix high byte of effective address */
+    add_action_to_queue(state, 314);
+  /*       6+  address+Y   R  read from effective address */
+    // ^Will be added in 313 if necessary
+  /*      Notes: The effective address is always fetched from zero page, */
+  /*             i.e. the zero page boundary crossing is not handled. */
+
+  /*             * The high byte of the effective address may be invalid */
+  /*               at this time, i.e. it may be smaller by $100. */
+
+  /*             + This cycle will be executed only if the effective address */
+  /*               was invalid during cycle #5, i.e. page boundary was crossed. */
+    break;
+    // CLC
   case 0x18:
     add_action_to_queue(state, 12);
     break;
@@ -1189,6 +1313,37 @@ void add_instruction_to_queue(nes_state *state) {
     }
     // TODO : Add extra action for crossing page boundary
     break;
+
+    // AND indirect-indexed, Y
+  case 0x31:
+    state->cpu->destination_reg = &state->cpu->registers->ACC;
+  /* #    address   R/W description */
+  /*      --- ----------- --- ------------------------------------------ */
+  /*       1      PC       R  fetch opcode, increment PC */
+  /*       2      PC       R  fetch pointer address, increment PC */
+    add_action_to_queue(state, 307);
+    /* add_action_to_queue(state, 11); // increment PC, nowhere to store pointer */
+  /*       3    pointer    R  fetch effective address low */
+    add_action_to_queue(state, 312);
+  /*       4   pointer+1   R  fetch effective address high, */
+  /*                          add Y to low byte of effective address */
+    add_action_to_queue(state, 313);
+  /*       5   address+Y*  R  read from effective address, */
+  /*                          fix high byte of effective address */
+    add_action_to_queue(state, 315);
+  /*       6+  address+Y   R  read from effective address */
+    // ^Will be added in 313 if necessary
+  /*      Notes: The effective address is always fetched from zero page, */
+  /*             i.e. the zero page boundary crossing is not handled. */
+
+  /*             * The high byte of the effective address may be invalid */
+  /*               at this time, i.e. it may be smaller by $100. */
+
+  /*             + This cycle will be executed only if the effective address */
+  /*               was invalid during cycle #5, i.e. page boundary was crossed. */
+    break;
+
+
     // SEC - set carry flag
   case 0x38:
     add_action_to_queue(state, 100);
@@ -1313,6 +1468,29 @@ void add_instruction_to_queue(nes_state *state) {
     }
     // TODO : Add extra action for crossing page boundary
     break;
+
+    // EOR indirect-indexed, Y
+  case 0x51:
+    state->cpu->destination_reg = &state->cpu->registers->ACC;
+  /* #    address   R/W description */
+  /*      --- ----------- --- ------------------------------------------ */
+  /*       1      PC       R  fetch opcode, increment PC */
+  /*       2      PC       R  fetch pointer address, increment PC */
+    add_action_to_queue(state, 307);
+    /* add_action_to_queue(state, 11); // increment PC, nowhere to store pointer */
+  /*       3    pointer    R  fetch effective address low */
+    add_action_to_queue(state, 312);
+  /*       4   pointer+1   R  fetch effective address high, */
+  /*                          add Y to low byte of effective address */
+    add_action_to_queue(state, 313);
+  /*       5   address+Y*  R  read from effective address, */
+  /*                          fix high byte of effective address */
+    add_action_to_queue(state, 316);
+  /*       6+  address+Y   R  read from effective address */
+    // ^Will be added in 313 if necessary
+    break;
+
+
     // RTS - Return from subroutine
   case 0x60:
     /*  #  address R/W description */
@@ -1428,6 +1606,29 @@ add_action_to_queue(state, 15);
     }
     // TODO : Add extra action for crossing page boundary
     break;
+
+    // ADC indirect-indexed, Y
+  case 0x71:
+    state->cpu->destination_reg = &state->cpu->registers->ACC;
+  /* #    address   R/W description */
+  /*      --- ----------- --- ------------------------------------------ */
+  /*       1      PC       R  fetch opcode, increment PC */
+  /*       2      PC       R  fetch pointer address, increment PC */
+    add_action_to_queue(state, 307);
+    /* add_action_to_queue(state, 11); // increment PC, nowhere to store pointer */
+  /*       3    pointer    R  fetch effective address low */
+    add_action_to_queue(state, 312);
+  /*       4   pointer+1   R  fetch effective address high, */
+  /*                          add Y to low byte of effective address */
+    add_action_to_queue(state, 313);
+  /*       5   address+Y*  R  read from effective address, */
+  /*                          fix high byte of effective address */
+    add_action_to_queue(state, 317);
+  /*       6+  address+Y   R  read from effective address */
+    // ^Will be added in 313 if necessary
+    break;
+
+
     // SEI - Set Interrupt Flag
   case 0x78:
     add_action_to_queue(state, 102);
@@ -1802,6 +2003,28 @@ add_action_to_queue(state, 15);
     }
     // TODO : Add extra action for crossing page boundary
     break;
+
+    // CMP indirect-indexed, Y
+  case 0xD1:
+    state->cpu->destination_reg = &state->cpu->registers->ACC;
+  /* #    address   R/W description */
+  /*      --- ----------- --- ------------------------------------------ */
+  /*       1      PC       R  fetch opcode, increment PC */
+  /*       2      PC       R  fetch pointer address, increment PC */
+    add_action_to_queue(state, 307);
+    /* add_action_to_queue(state, 11); // increment PC, nowhere to store pointer */
+  /*       3    pointer    R  fetch effective address low */
+    add_action_to_queue(state, 312);
+  /*       4   pointer+1   R  fetch effective address high, */
+  /*                          add Y to low byte of effective address */
+    add_action_to_queue(state, 313);
+  /*       5   address+Y*  R  read from effective address, */
+  /*                          fix high byte of effective address */
+    add_action_to_queue(state, 318);
+  /*       6+  address+Y   R  read from effective address */
+    // ^Will be added in 313 if necessary
+    break;
+
     // CLD - Clear Decimal Flag
   case 0xD8:
     add_action_to_queue(state, 93);
@@ -1924,6 +2147,29 @@ add_action_to_queue(state, 15);
     }
     // TODO : Add extra action for crossing page boundary
     break;
+
+    // SBC indirect-indexed, Y
+  case 0xF1:
+    state->cpu->destination_reg = &state->cpu->registers->ACC;
+  /* #    address   R/W description */
+  /*      --- ----------- --- ------------------------------------------ */
+  /*       1      PC       R  fetch opcode, increment PC */
+  /*       2      PC       R  fetch pointer address, increment PC */
+    add_action_to_queue(state, 307);
+    /* add_action_to_queue(state, 11); // increment PC, nowhere to store pointer */
+  /*       3    pointer    R  fetch effective address low */
+    add_action_to_queue(state, 312);
+  /*       4   pointer+1   R  fetch effective address high, */
+  /*                          add Y to low byte of effective address */
+    add_action_to_queue(state, 313);
+  /*       5   address+Y*  R  read from effective address, */
+  /*                          fix high byte of effective address */
+    add_action_to_queue(state, 319);
+  /*       6+  address+Y   R  read from effective address */
+    // ^Will be added in 313 if necessary
+    break;
+
+
     // SED - Set Decimal Flag
   case 0xF8:
     add_action_to_queue(state, 103);
