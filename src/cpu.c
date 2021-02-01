@@ -923,6 +923,14 @@ void add_instruction_to_queue(nes_state *state) {
   case 0x0A:
     add_action_to_queue(state, 401);
     break;
+    // ORA Absolute
+  case 0x0D:
+    /* state->cpu->destination_reg = &state->cpu->registers->Y; */
+    add_action_to_queue(state, 300);
+    add_action_to_queue(state, 301);
+    // Read from effective address, copy to register
+    add_action_to_queue(state, 30);
+    break;
     // BPL - Branch Result Plus
   case 0x10:
     add_action_to_queue(state, 9);
@@ -1025,12 +1033,14 @@ void add_instruction_to_queue(nes_state *state) {
     add_action_to_queue(state, 13);
     break;
 
-
-    // JMP immediate
-  case 0x4C:
-    add_action_to_queue(state, 2);
-    add_action_to_queue(state, 3);
+    // AND Absolute
+  case 0x2D:
+    add_action_to_queue(state, 300);
+    add_action_to_queue(state, 301);
+    // Read from effective address, copy to register
+    add_action_to_queue(state, 31);
     break;
+
     // BMI - Branch Result Minus
   case 0x30:
     add_action_to_queue(state, 9);
@@ -1125,6 +1135,19 @@ void add_instruction_to_queue(nes_state *state) {
     add_action_to_queue(state, 404);
     break;
 
+    // JMP immediate
+  case 0x4C:
+    add_action_to_queue(state, 2);
+    add_action_to_queue(state, 3);
+    break;
+    // EOR Absolute
+  case 0x4D:
+    add_action_to_queue(state, 300);
+    add_action_to_queue(state, 301);
+    // Read from effective address, copy to register
+    add_action_to_queue(state, 32);
+    break;
+
     // BVC - Branch Overflow clear
   case 0x50:
     add_action_to_queue(state, 9);
@@ -1216,6 +1239,13 @@ add_action_to_queue(state, 15);
     state->cpu->source_reg = &state->cpu->registers->ACC;
     add_action_to_queue(state, 406);
     /* add_action_to_queue(state, 402); */
+    break;
+    // ADC Absolute
+  case 0x6D:
+    add_action_to_queue(state, 300);
+    add_action_to_queue(state, 301);
+    // Read from effective address, copy to register
+    add_action_to_queue(state, 33);
     break;
 
     // BVS - Branch Overflow Set
@@ -1541,6 +1571,14 @@ add_action_to_queue(state, 15);
     state->cpu->source_reg = &state->cpu->registers->X;
     add_action_to_queue(state, 201);
     break;
+    // CMP Absolute
+  case 0xCD:
+    state->cpu->source_reg = &state->cpu->registers->ACC;
+    add_action_to_queue(state, 300);
+    add_action_to_queue(state, 301);
+    // Read from effective address, copy to register
+    add_action_to_queue(state, 34);
+    break;
     // BNE
   case 0xD0:
     add_action_to_queue(state, 9);
@@ -1622,6 +1660,14 @@ add_action_to_queue(state, 15);
 // SBC Immediate (Illegal opcode)
   case 0xEB:
     add_action_to_queue(state, 28);
+    break;
+    // SBC Absolute
+  case 0xED:
+    state->cpu->source_reg = &state->cpu->registers->ACC;
+    add_action_to_queue(state, 300);
+    add_action_to_queue(state, 301);
+    // Read from effective address, copy to register
+    add_action_to_queue(state, 35);
     break;
     // BEQ
   case 0xF0:
