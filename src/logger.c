@@ -41,6 +41,19 @@ void disass(nes_state *state, char *output) {
               read_mem_byte(state, addr));
     }
     break;
+    // ASL Zeropage
+  case 0x06:
+    {
+      uint16_t addr = (uint16_t) read_mem_byte(state, state->cpu->current_opcode_PC+1);
+
+      sprintf(output, "%04X  %02X %02X     ASL $%02X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              read_mem_byte(state, state->cpu->current_opcode_PC+1),
+              read_mem_byte(state, state->cpu->current_opcode_PC+1),
+              read_mem_byte(state, addr));
+    }
+    break;
     // PHP
   case 0x08:
     sprintf(output, "%04X  %02X        PHP",
@@ -133,6 +146,19 @@ void disass(nes_state *state, char *output) {
             read_mem_byte(state, state->cpu->current_opcode_PC+1),
             read_mem_byte(state, read_mem_byte(state, state->cpu->current_opcode_PC+1)));
     break;
+    // ROL Zeropage
+  case 0x26:
+    {
+      uint16_t addr = (uint16_t) read_mem_byte(state, state->cpu->current_opcode_PC+1);
+
+      sprintf(output, "%04X  %02X %02X     ROL $%02X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              read_mem_byte(state, state->cpu->current_opcode_PC+1),
+              read_mem_byte(state, state->cpu->current_opcode_PC+1),
+              read_mem_byte(state, addr));
+    }
+    break;
     // PLP
   case 0x28:
     sprintf(output, "%04X  %02X        PLP",
@@ -192,6 +218,19 @@ void disass(nes_state *state, char *output) {
       uint16_t addr = (uint16_t) read_mem_byte(state, state->cpu->current_opcode_PC+1);
 
       sprintf(output, "%04X  %02X %02X     EOR $%02X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              read_mem_byte(state, state->cpu->current_opcode_PC+1),
+              read_mem_byte(state, state->cpu->current_opcode_PC+1),
+              read_mem_byte(state, addr));
+    }
+    break;
+    // LSR Zeropage
+  case 0x46:
+    {
+      uint16_t addr = (uint16_t) read_mem_byte(state, state->cpu->current_opcode_PC+1);
+
+      sprintf(output, "%04X  %02X %02X     LSR $%02X = %02X",
               state->cpu->current_opcode_PC,
               state->cpu->current_opcode,
               read_mem_byte(state, state->cpu->current_opcode_PC+1),
@@ -270,6 +309,19 @@ void disass(nes_state *state, char *output) {
       uint16_t addr = (uint16_t) read_mem_byte(state, state->cpu->current_opcode_PC+1);
 
       sprintf(output, "%04X  %02X %02X     ADC $%02X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              read_mem_byte(state, state->cpu->current_opcode_PC+1),
+              read_mem_byte(state, state->cpu->current_opcode_PC+1),
+              read_mem_byte(state, addr));
+    }
+    break;
+    // ROR Zeropage
+  case 0x66:
+    {
+      uint16_t addr = (uint16_t) read_mem_byte(state, state->cpu->current_opcode_PC+1);
+
+      sprintf(output, "%04X  %02X %02X     ROR $%02X = %02X",
               state->cpu->current_opcode_PC,
               state->cpu->current_opcode,
               read_mem_byte(state, state->cpu->current_opcode_PC+1),
@@ -369,6 +421,22 @@ void disass(nes_state *state, char *output) {
     sprintf(output, "%04X  %02X        TXA",
             state->cpu->current_opcode_PC,
             state->cpu->current_opcode);
+    break;
+    //STY Absolute
+  case 0x8C:
+    {
+      uint16_t addr = read_mem_byte(state, state->cpu->current_opcode_PC+2) << 8;
+      addr |= read_mem_byte(state, state->cpu->current_opcode_PC+1);
+
+      sprintf(output, "%04X  %02X %02X %02X  STY $%02X%02X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              read_mem_byte(state, state->cpu->current_opcode_PC+1),
+              read_mem_byte(state, state->cpu->current_opcode_PC+2),
+              read_mem_byte(state, state->cpu->current_opcode_PC+2),
+              read_mem_byte(state, state->cpu->current_opcode_PC+1),
+              read_mem_byte(state, addr));
+    }
     break;
     //STA Absolute
   case 0x8D:
@@ -476,13 +544,15 @@ void disass(nes_state *state, char *output) {
   case 0xA5:
     {
       uint16_t addr = (uint16_t) read_mem_byte(state, state->cpu->current_opcode_PC+1);
-      /* addr |= read_mem_byte(state, state->cpu->current_opcode_PC+1); */
+
 
       sprintf(output, "%04X  %02X %02X     LDA $%02X = %02X",
               state->cpu->current_opcode_PC,
               state->cpu->current_opcode,
-              read_mem_byte(state, state->cpu->current_opcode_PC+1),
-              read_mem_byte(state, state->cpu->current_opcode_PC+1),
+              addr,
+              addr,
+              /* read_mem_byte(state, state->cpu->current_opcode_PC+1), */
+              /* read_mem_byte(state, state->cpu->current_opcode_PC+1), */
               read_mem_byte(state, addr));
     }
     break;
@@ -519,6 +589,22 @@ void disass(nes_state *state, char *output) {
             state->cpu->current_opcode_PC,
             state->cpu->current_opcode);
     break;
+    // LDY Absolute
+  case 0xAC:
+    {
+      uint16_t addr = read_mem_byte(state, state->cpu->current_opcode_PC+2) << 8;
+      addr |= read_mem_byte(state, state->cpu->current_opcode_PC+1);
+
+      sprintf(output, "%04X  %02X %02X %02X  LDY $%02X%02X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              read_mem_byte(state, state->cpu->current_opcode_PC+1),
+              read_mem_byte(state, state->cpu->current_opcode_PC+2),
+              read_mem_byte(state, state->cpu->current_opcode_PC+2),
+              read_mem_byte(state, state->cpu->current_opcode_PC+1),
+              read_mem_byte(state, addr));
+    }
+    break;
     // LDA Absolute
   case 0xAD:
     {
@@ -534,23 +620,23 @@ void disass(nes_state *state, char *output) {
               read_mem_byte(state, state->cpu->current_opcode_PC+1),
               read_mem_byte(state, addr));
     }
-                  break;
-                  // LDX Absolute
-                  case 0xAE:
-                    {
-                      uint16_t addr = read_mem_byte(state, state->cpu->current_opcode_PC+2) << 8;
-                      addr |= read_mem_byte(state, state->cpu->current_opcode_PC+1);
+    break;
+    // LDX Absolute
+  case 0xAE:
+    {
+      uint16_t addr = read_mem_byte(state, state->cpu->current_opcode_PC+2) << 8;
+      addr |= read_mem_byte(state, state->cpu->current_opcode_PC+1);
 
-                      sprintf(output, "%04X  %02X %02X %02X  LDX $%02X%02X = %02X",
-                              state->cpu->current_opcode_PC,
-                              state->cpu->current_opcode,
-                              read_mem_byte(state, state->cpu->current_opcode_PC+1),
-                              read_mem_byte(state, state->cpu->current_opcode_PC+2),
-                              read_mem_byte(state, state->cpu->current_opcode_PC+2),
-                              read_mem_byte(state, state->cpu->current_opcode_PC+1),
-                              read_mem_byte(state, addr));
-                    }
-                    break;
+      sprintf(output, "%04X  %02X %02X %02X  LDX $%02X%02X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              read_mem_byte(state, state->cpu->current_opcode_PC+1),
+              read_mem_byte(state, state->cpu->current_opcode_PC+2),
+              read_mem_byte(state, state->cpu->current_opcode_PC+2),
+              read_mem_byte(state, state->cpu->current_opcode_PC+1),
+              read_mem_byte(state, addr));
+    }
+    break;
     // BCS
   case 0xB0:
     sprintf(output, "%04X  %02X %02X     BCS $%04X",
@@ -597,12 +683,38 @@ void disass(nes_state *state, char *output) {
               value);
     }
     break;
+    // CPY Zeropage
+  case 0xC4:
+    {
+      uint16_t addr = (uint16_t) read_mem_byte(state, state->cpu->current_opcode_PC+1);
+
+      sprintf(output, "%04X  %02X %02X     CPY $%02X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              read_mem_byte(state, state->cpu->current_opcode_PC+1),
+              read_mem_byte(state, state->cpu->current_opcode_PC+1),
+              read_mem_byte(state, addr));
+    }
+    break;
     // CMP Zeropage
   case 0xC5:
     {
       uint16_t addr = (uint16_t) read_mem_byte(state, state->cpu->current_opcode_PC+1);
 
       sprintf(output, "%04X  %02X %02X     CMP $%02X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              read_mem_byte(state, state->cpu->current_opcode_PC+1),
+              read_mem_byte(state, state->cpu->current_opcode_PC+1),
+              read_mem_byte(state, addr));
+    }
+    break;
+    // DEC Zeropage
+  case 0xC6:
+    {
+      uint16_t addr = (uint16_t) read_mem_byte(state, state->cpu->current_opcode_PC+1);
+
+      sprintf(output, "%04X  %02X %02X     DEC $%02X = %02X",
               state->cpu->current_opcode_PC,
               state->cpu->current_opcode,
               read_mem_byte(state, state->cpu->current_opcode_PC+1),
@@ -689,6 +801,19 @@ void disass(nes_state *state, char *output) {
       uint16_t addr = (uint16_t) read_mem_byte(state, state->cpu->current_opcode_PC+1);
 
       sprintf(output, "%04X  %02X %02X     SBC $%02X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              read_mem_byte(state, state->cpu->current_opcode_PC+1),
+              read_mem_byte(state, state->cpu->current_opcode_PC+1),
+              read_mem_byte(state, addr));
+    }
+    break;
+    // INC Zeropage
+  case 0xE6:
+    {
+      uint16_t addr = (uint16_t) read_mem_byte(state, state->cpu->current_opcode_PC+1);
+
+      sprintf(output, "%04X  %02X %02X     INC $%02X = %02X",
               state->cpu->current_opcode_PC,
               state->cpu->current_opcode,
               read_mem_byte(state, state->cpu->current_opcode_PC+1),

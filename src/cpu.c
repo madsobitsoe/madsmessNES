@@ -543,22 +543,40 @@ void execute_next_action(nes_state *state) {
     break;
 
     // CMP memory
+    /* case 34: */
+    /* { */
+    /*   uint8_t acc = state->cpu->registers->ACC; */
+    /*   uint8_t value = read_mem_byte(state, ((uint16_t) state->cpu->high_addr_byte) << 8 | (uint16_t) state->cpu->low_addr_byte); */
+    /*   uint8_t res = acc - value; */
+    /*   /\* http://www.6502.org/tutorials/6502opcodes.html#CMP *\/ */
+    /*   /\* Compare sets flags as if a subtraction had been carried out. *\/ */
+    /*   /\* If the value in the accumulator is equal or greater than the compared value, *\/ */
+    /*   /\* the Carry will be set. *\/ */
+    /*   /\* The equal (Z) and negative (N) flags will be set based on equality or lack *\/ */
+    /*   /\* thereof and the sign (i.e. A>=$80) of the accumulator. *\/ */
+    /*   if (acc == value) { set_zero_flag(state); } else { clear_zero_flag(state); } */
+    /*   if (acc >= value) { set_carry_flag(state); } else { clear_carry_flag(state); } */
+    /*   if (res >= 0x80)  { set_negative_flag(state); } else { clear_negative_flag(state); } */
+
+    /* } */
+    /* break; */
+    // CMP/CPX/CPY memory
   case 34:
     {
-      uint8_t acc = state->cpu->registers->ACC;
+      uint8_t reg = *state->cpu->source_reg;
       uint8_t value = read_mem_byte(state, ((uint16_t) state->cpu->high_addr_byte) << 8 | (uint16_t) state->cpu->low_addr_byte);
-      uint8_t res = acc - value;
+      uint8_t res = reg - value;
       /* http://www.6502.org/tutorials/6502opcodes.html#CMP */
       /* Compare sets flags as if a subtraction had been carried out. */
       /* If the value in the accumulator is equal or greater than the compared value, */
       /* the Carry will be set. */
       /* The equal (Z) and negative (N) flags will be set based on equality or lack */
       /* thereof and the sign (i.e. A>=$80) of the accumulator. */
-      if (acc == value) { set_zero_flag(state); } else { clear_zero_flag(state); }
-      if (acc >= value) { set_carry_flag(state); } else { clear_carry_flag(state); }
+      if (reg == value) { set_zero_flag(state); } else { clear_zero_flag(state); }
+      if (reg >= value) { set_carry_flag(state); } else { clear_carry_flag(state); }
       if (res >= 0x80)  { set_negative_flag(state); } else { clear_negative_flag(state); }
-
     }
+
     break;
     // SBC memory
   case 35:
@@ -576,24 +594,6 @@ void execute_next_action(nes_state *state) {
       else { clear_overflow_flag(state);}
       state->cpu->registers->ACC = (uint8_t) res;
     }
-    break;
-    // CPX memory
-  case 36:
-    {
-      uint8_t x = state->cpu->registers->X;
-      uint8_t value = read_mem_byte(state, ((uint16_t) state->cpu->high_addr_byte) << 8 | (uint16_t) state->cpu->low_addr_byte);
-      uint8_t res = x - value;
-      /* http://www.6502.org/tutorials/6502opcodes.html#CMP */
-      /* Compare sets flags as if a subtraction had been carried out. */
-      /* If the value in the accumulator is equal or greater than the compared value, */
-      /* the Carry will be set. */
-      /* The equal (Z) and negative (N) flags will be set based on equality or lack */
-      /* thereof and the sign (i.e. A>=$80) of the accumulator. */
-      if (x == value) { set_zero_flag(state); } else { clear_zero_flag(state); }
-      if (x >= value) { set_carry_flag(state); } else { clear_carry_flag(state); }
-      if (res >= 0x80)  { set_negative_flag(state); } else { clear_negative_flag(state); }
-    }
-
     break;
 
     // clear carry flag
@@ -669,15 +669,15 @@ void execute_next_action(nes_state *state) {
   case 202:
     (*state->cpu->destination_reg) = (*state->cpu->source_reg);
     if (*state->cpu->destination_reg == 0) { set_zero_flag(state); } else { clear_zero_flag(state); }
-    if (*state->cpu->destination_reg & 0x80) { set_negative_flag(state); } else { clear_negative_flag(state); }
-    break;
-    // Copy source_reg to destination_reg, affect no flags
-  case 203:
-    (*state->cpu->destination_reg) = (*state->cpu->source_reg);
-    break;
+     if (*state->cpu->destination_reg & 0x80) { set_negative_flag(state); } else { clear_negative_flag(state); }
+     break;
+     // Copy source_reg to destination_reg, affect no flags
+     case 203:
+     (*state->cpu->destination_reg) = (*state->cpu->source_reg);
+     break;
 
 
-    // Fetch low byte of address, increment PC
+     // Fetch low byte of address, increment PC
   case 300:
     state->cpu->low_addr_byte = read_mem_byte(state, state->cpu->registers->PC);
     state->cpu->registers->PC++;
@@ -695,7 +695,7 @@ void execute_next_action(nes_state *state) {
       /* printf("Writing %02X to %04X\n", *state->cpu->source_reg, addr); */
       state->memory[addr] = (*state->cpu->source_reg);
     }
-break;
+    break;
     // Read from effective address, store in register, affect N,Z flags
   case 303:
     {
@@ -734,54 +734,116 @@ break;
     {
       state->cpu->operand = state->cpu->registers->PC;
       state->cpu->registers->PC++;
-      /* printf("operand after fetching pointer: %02X\n", state->cpu->operand); */
     }
     break;
+    // Increment memory
+  case 308:
+    {
+      uint16_t addr = ((uint16_t) state->cpu->high_addr_byte) << 8 | (uint16_t) state->cpu->low_addr_byte;
+      (state->memory[addr])++;
+      if ((state->memory[addr]) == 0) { set_zero_flag(state); } else { clear_zero_flag(state); }
+      if ((state->memory[addr]) & 0x80) { set_negative_flag(state); } else { clear_negative_flag(state); }
+    }
+    break;
+    // Increment memory
+  case 309:
+    {
+      uint16_t addr = ((uint16_t) state->cpu->high_addr_byte) << 8 | (uint16_t) state->cpu->low_addr_byte;
+      (state->memory[addr])--;
+      if ((state->memory[addr]) == 0) { set_zero_flag(state); } else { clear_zero_flag(state); }
+      if ((state->memory[addr]) & 0x80) { set_negative_flag(state); } else { clear_negative_flag(state); }
+    }
+        break;
     // LSR A
   case 400:
     if (state->cpu->registers->ACC & 0x1) { set_carry_flag(state); }
-        else { clear_carry_flag(state); }
-        state->cpu->registers->ACC = state->cpu->registers->ACC >> 1;
-        clear_negative_flag(state);
-        if (state->cpu->registers->ACC != 0) { clear_zero_flag(state); } else { set_zero_flag(state); }
-        break;
-        // ASL A
-        case 401:
-          if (state->cpu->registers->ACC & 0x80) { set_carry_flag(state); }
-        else { clear_carry_flag(state); }
-        state->cpu->registers->ACC = state->cpu->registers->ACC << 1;
-        if (state->cpu->registers->ACC & 0x80) { set_negative_flag(state); } else {
-          clear_negative_flag(state);
-        }
-        if (state->cpu->registers->ACC != 0) { clear_zero_flag(state); } else { set_zero_flag(state); }
-        break;
-        // ROR A
-        case 402:
-          {
-            uint8_t newacc = state->cpu->registers->ACC;
-            bool carry = is_carry_flag_set(state);
-            uint8_t lsb = newacc & 1;
-            newacc = newacc >> 1;
-            if (carry) { newacc |= 0x80; set_negative_flag(state); } else { clear_negative_flag(state); }
-            if (lsb) { set_carry_flag(state); } else { clear_carry_flag(state); }
-            if (newacc == 0) { set_zero_flag(state); } else { clear_zero_flag(state); }
-            state->cpu->registers->ACC = newacc;
-          }
-          break;
-          // ROL A
-          case 403:
-            {
-              uint8_t newacc = state->cpu->registers->ACC;
-              bool carry = is_carry_flag_set(state);
-              uint8_t msb = newacc & 0x80;
-              newacc = newacc << 1;
-              if (carry) { newacc |= 0x1; }
-              if (newacc & 0x80) { set_negative_flag(state); } else { clear_negative_flag(state); }
-              if (msb) { set_carry_flag(state); } else { clear_carry_flag(state); }
-              if (newacc == 0) { set_zero_flag(state); } else { clear_zero_flag(state); }
-              state->cpu->registers->ACC = newacc;
-            }
-            break;
+    else { clear_carry_flag(state); }
+    state->cpu->registers->ACC = state->cpu->registers->ACC >> 1;
+    clear_negative_flag(state);
+    if (state->cpu->registers->ACC != 0) { clear_zero_flag(state); } else { set_zero_flag(state); }
+    break;
+    // ASL A
+  case 401:
+    if (state->cpu->registers->ACC & 0x80) { set_carry_flag(state); }
+    else { clear_carry_flag(state); }
+    state->cpu->registers->ACC = state->cpu->registers->ACC << 1;
+    if (state->cpu->registers->ACC & 0x80) { set_negative_flag(state); } else {
+      clear_negative_flag(state);
+    }
+    if (state->cpu->registers->ACC != 0) { clear_zero_flag(state); } else { set_zero_flag(state); }
+    break;
+    // ROR A
+  case 402:
+    {
+      uint8_t newacc = state->cpu->registers->ACC;
+      bool carry = is_carry_flag_set(state);
+      uint8_t lsb = newacc & 1;
+      newacc = newacc >> 1;
+      if (carry) { newacc |= 0x80; set_negative_flag(state); } else { clear_negative_flag(state); }
+      if (lsb) { set_carry_flag(state); } else { clear_carry_flag(state); }
+      if (newacc == 0) { set_zero_flag(state); } else { clear_zero_flag(state); }
+      state->cpu->registers->ACC = newacc;
+    }
+    break;
+    // ROL A
+  case 403:
+    {
+      uint8_t newacc = state->cpu->registers->ACC;
+      bool carry = is_carry_flag_set(state);
+      uint8_t msb = newacc & 0x80;
+      newacc = newacc << 1;
+      if (carry) { newacc |= 0x1; }
+      if (newacc & 0x80) { set_negative_flag(state); } else { clear_negative_flag(state); }
+      if (msb) { set_carry_flag(state); } else { clear_carry_flag(state); }
+      if (newacc == 0) { set_zero_flag(state); } else { clear_zero_flag(state); }
+      state->cpu->registers->ACC = newacc;
+    }
+    break;
+    // LSR Memory
+  case 404:
+    if (*state->cpu->source_reg & 0x1) { set_carry_flag(state); }
+    else { clear_carry_flag(state); }
+    *state->cpu->source_reg = *state->cpu->source_reg >> 1;
+    clear_negative_flag(state);
+    if (*state->cpu->source_reg != 0) { clear_zero_flag(state); } else { set_zero_flag(state); }
+    break;
+    // ASL Memory
+  case 405:
+    if (*state->cpu->source_reg & 0x80) { set_carry_flag(state); }
+    else { clear_carry_flag(state); }
+    *state->cpu->source_reg = *state->cpu->source_reg << 1;
+    if (*state->cpu->source_reg & 0x80) { set_negative_flag(state); } else {
+      clear_negative_flag(state);
+    }
+    if (*state->cpu->source_reg != 0) { clear_zero_flag(state); } else { set_zero_flag(state); }
+    break;
+    // ROR Mem
+  case 406:
+    {
+      uint8_t newval = *state->cpu->source_reg;
+      bool carry = is_carry_flag_set(state);
+      uint8_t lsb = newval & 1;
+      newval = newval >> 1;
+      if (carry) { newval |= 0x80; set_negative_flag(state); } else { clear_negative_flag(state); }
+      if (lsb) { set_carry_flag(state); } else { clear_carry_flag(state); }
+      if (newval == 0) { set_zero_flag(state); } else { clear_zero_flag(state); }
+      *state->cpu->source_reg = newval;
+    }
+    break;
+    // ROL Memory
+  case 407:
+    {
+      uint8_t newacc = *state->cpu->source_reg;
+      bool carry = is_carry_flag_set(state);
+      uint8_t msb = newacc & 0x80;
+      newacc = newacc << 1;
+      if (carry) { newacc |= 0x1; }
+      if (newacc & 0x80) { set_negative_flag(state); } else { clear_negative_flag(state); }
+      if (msb) { set_carry_flag(state); } else { clear_carry_flag(state); }
+      if (newacc == 0) { set_zero_flag(state); } else { clear_zero_flag(state); }
+      *state->cpu->source_reg = newacc;
+    }
+    break;
 
   }
 
@@ -830,6 +892,20 @@ void add_instruction_to_queue(nes_state *state) {
     add_action_to_queue(state, 2);
     /*       3  address  R  read from effective address */
     add_action_to_queue(state, 30);
+    break;
+    // ASL Zeropage
+  case 0x06:
+    state->cpu->high_addr_byte = 0x0;
+    state->cpu->source_reg = &(state->memory[state->cpu->low_addr_byte]);
+    /*   2    PC     R  fetch address, increment PC */
+    add_action_to_queue(state, 2);
+    /*   3  address  R  read from effective address */
+    add_action_to_queue(state, 0); // Stall for one cycle, no need to read
+    /*   4  address  W  write the value back to effective address, */
+    /*   and do the operation on it */
+    add_action_to_queue(state, 0); // // Stall for one cycle, no need to write
+    /*   5  address  W  write the new value to effective address */
+    add_action_to_queue(state, 405);
     break;
     // PHP - Push Processor Status on stack
   case 0x08:
@@ -905,6 +981,20 @@ void add_instruction_to_queue(nes_state *state) {
     /*       3  address  R  read from effective address */
     add_action_to_queue(state, 31);
     break;
+    // ROL Zeropage
+  case 0x26:
+    state->cpu->high_addr_byte = 0x0;
+    state->cpu->source_reg = &(state->memory[state->cpu->low_addr_byte]);
+    /*   2    PC     R  fetch address, increment PC */
+    add_action_to_queue(state, 2);
+    /*   3  address  R  read from effective address */
+    add_action_to_queue(state, 0); // Stall for one cycle, no need to read
+    /*   4  address  W  write the value back to effective address, */
+    /*   and do the operation on it */
+    add_action_to_queue(state, 0); // // Stall for one cycle, no need to write
+    /*   5  address  W  write the new value to effective address */
+    add_action_to_queue(state, 407);
+    break;
     // PLP - Pull Process Register (flags) from stack
   case 0x28:
 /*         2    PC     R  read next instruction byte (and throw it away) */
@@ -921,7 +1011,8 @@ void add_instruction_to_queue(nes_state *state) {
     break;
     // ROL A
   case 0x2A:
-    add_action_to_queue(state, 403);
+    state->cpu->source_reg = &state->cpu->registers->ACC;
+    add_action_to_queue(state, 407);
     break;
 
     // JMP immediate
@@ -990,6 +1081,21 @@ void add_instruction_to_queue(nes_state *state) {
     add_action_to_queue(state, 32);
     break;
 
+    // LSR Zeropage
+  case 0x46:
+    state->cpu->high_addr_byte = 0x0;
+    state->cpu->source_reg = &(state->memory[state->cpu->low_addr_byte]);
+    /*   2    PC     R  fetch address, increment PC */
+    add_action_to_queue(state, 2);
+    /*   3  address  R  read from effective address */
+    add_action_to_queue(state, 0); // Stall for one cycle, no need to read
+    /*   4  address  W  write the value back to effective address, */
+    /*   and do the operation on it */
+    add_action_to_queue(state, 0); // // Stall for one cycle, no need to write
+    /*   5  address  W  write the new value to effective address */
+    add_action_to_queue(state, 404);
+    break;
+
     // PHA - Push ACC to stack
   case 0x48:
     /* R  read next instruction byte (and throw it away) */
@@ -1004,7 +1110,8 @@ void add_instruction_to_queue(nes_state *state) {
 
     // LSR A - Logical Shift Right accumulator
   case 0x4A:
-    add_action_to_queue(state, 400);
+    state->cpu->source_reg = &state->cpu->registers->ACC;
+    add_action_to_queue(state, 404);
     break;
 
     // BVC - Branch Overflow clear
@@ -1074,6 +1181,20 @@ add_action_to_queue(state, 15);
     /*       3  address  R  read from effective address */
     add_action_to_queue(state, 33);
     break;
+    // ROR Zeropage
+  case 0x66:
+    state->cpu->high_addr_byte = 0x0;
+    state->cpu->source_reg = &(state->memory[state->cpu->low_addr_byte]);
+    /*   2    PC     R  fetch address, increment PC */
+    add_action_to_queue(state, 2);
+    /*   3  address  R  read from effective address */
+    add_action_to_queue(state, 0); // Stall for one cycle, no need to read
+    /*   4  address  W  write the value back to effective address, */
+    /*   and do the operation on it */
+    add_action_to_queue(state, 0); // // Stall for one cycle, no need to write
+    /*   5  address  W  write the new value to effective address */
+    add_action_to_queue(state, 406);
+    break;
 
     // ADC Immediate
   case 0x69:
@@ -1081,7 +1202,9 @@ add_action_to_queue(state, 15);
     break;
     // ROR A
   case 0x6A:
-    add_action_to_queue(state, 402);
+    state->cpu->source_reg = &state->cpu->registers->ACC;
+    add_action_to_queue(state, 406);
+    /* add_action_to_queue(state, 402); */
     break;
 
     // BVS - Branch Overflow Set
@@ -1143,6 +1266,16 @@ add_action_to_queue(state, 15);
   case 0x88:
     state->cpu->source_reg = &state->cpu->registers->Y;
     add_action_to_queue(state, 201);
+    break;
+    // STY Absolute
+  case 0x8C:
+    state->cpu->source_reg = &state->cpu->registers->Y;
+    /*       2    PC     R  fetch low byte of address, increment PC */
+    add_action_to_queue(state, 300);
+    /*       3    PC     R  fetch high byte of address, increment PC */
+    add_action_to_queue(state, 301);
+    /*       4  address  W  write register to effective address */
+    add_action_to_queue(state, 302);
     break;
     // STA Absolute
   case 0x8D:
@@ -1270,6 +1403,14 @@ add_action_to_queue(state, 15);
     state->cpu->destination_reg = &state->cpu->registers->X;
     add_action_to_queue(state, 202);
     break;
+    // LDY Absolute
+  case 0xAC:
+    state->cpu->destination_reg = &state->cpu->registers->Y;
+    add_action_to_queue(state, 300);
+    add_action_to_queue(state, 301);
+    // Read from effective address, copy to register
+    add_action_to_queue(state, 303);
+    break;
     // LDA Absolute
   case 0xAD:
     state->cpu->destination_reg = &state->cpu->registers->ACC;
@@ -1339,15 +1480,40 @@ add_action_to_queue(state, 15);
     /*   6    address    W  write ACC to effective address */
     add_action_to_queue(state, 34);
     break;
-    // CMP zeropage
-  case 0xC5:
+    // CPY zeropage
+  case 0xC4:
     // Clear out high addr byte, to ensure zero-page read
     state->cpu->high_addr_byte = 0x0;
-    state->cpu->destination_reg = &state->cpu->registers->ACC;
+    state->cpu->source_reg = &state->cpu->registers->Y;
     /* 2    PC     R  fetch address, increment PC */
     add_action_to_queue(state, 2);
     /*       3  address  R  read from effective address */
     add_action_to_queue(state, 34);
+    break;
+    // CMP zeropage
+  case 0xC5:
+    // Clear out high addr byte, to ensure zero-page read
+    state->cpu->high_addr_byte = 0x0;
+    state->cpu->source_reg = &state->cpu->registers->ACC;
+    /* 2    PC     R  fetch address, increment PC */
+    add_action_to_queue(state, 2);
+    /*       3  address  R  read from effective address */
+    add_action_to_queue(state, 34);
+    break;
+    // DEC Zeropage
+  case 0xC6:
+    state->cpu->high_addr_byte = 0x0;
+    // This should probably happen after the actions :(
+    /* state->cpu->source_reg = &state->memory[ state->cpu->low_addr_byte]; */
+    /*   2    PC     R  fetch address, increment PC */
+    add_action_to_queue(state, 2);
+    /*   3  address  R  read from effective address */
+    add_action_to_queue(state, 0); // Stall for one cycle, no need to read
+    /*   4  address  W  write the value back to effective address, */
+    /*   and do the operation on it */
+    add_action_to_queue(state, 0); // // Stall for one cycle, no need to write
+    /*   5  address  W  write the new value to effective address */
+    add_action_to_queue(state, 309);
     break;
 
     // INY - Increment Y register
@@ -1403,11 +1569,11 @@ add_action_to_queue(state, 15);
   case 0xE4:
     // Clear out high addr byte, to ensure zero-page read
     state->cpu->high_addr_byte = 0x0;
-    /* state->cpu->destination_reg = &state->cpu->registers->ACC; */
+    state->cpu->source_reg = &state->cpu->registers->X;
     /* 2    PC     R  fetch address, increment PC */
     add_action_to_queue(state, 2);
     /*       3  address  R  read from effective address */
-    add_action_to_queue(state, 36);
+    add_action_to_queue(state, 34);
     break;
     // SBC zeropage
   case 0xE5:
@@ -1419,15 +1585,30 @@ add_action_to_queue(state, 15);
     /*       3  address  R  read from effective address */
     add_action_to_queue(state, 35);
     break;
+    // INC Zeropage
+  case 0xE6:
+    state->cpu->high_addr_byte = 0x0;
+    // This should probably happen after the actions :(
+    /* state->cpu->source_reg = &state->memory[ state->cpu->low_addr_byte]; */
+    /*   2    PC     R  fetch address, increment PC */
+    add_action_to_queue(state, 2);
+    /*   3  address  R  read from effective address */
+    add_action_to_queue(state, 0); // Stall for one cycle, no need to read
+    /*   4  address  W  write the value back to effective address, */
+    /*   and do the operation on it */
+    add_action_to_queue(state, 0); // // Stall for one cycle, no need to write
+    /*   5  address  W  write the new value to effective address */
+    add_action_to_queue(state, 308);
+    break;
 
-    // INX - Decrement X register
+    // INX - Increment X register
   case 0xE8:
     state->cpu->source_reg = &state->cpu->registers->X;
     add_action_to_queue(state, 200);
     break;
-    // SBC Immediate
-  case 0xE9:
-    // SBC Immediate (Illegal opcode)
+                                             // SBC Immediate
+                                             case 0xE9:
+// SBC Immediate (Illegal opcode)
   case 0xEB:
     add_action_to_queue(state, 28);
     break;
