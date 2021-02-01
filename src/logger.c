@@ -670,6 +670,19 @@ void disass(nes_state *state, char *output) {
               value);
     }
     break;
+    // CPX Zeropage
+  case 0xE4:
+    {
+      uint16_t addr = (uint16_t) read_mem_byte(state, state->cpu->current_opcode_PC+1);
+
+      sprintf(output, "%04X  %02X %02X     CPX $%02X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              read_mem_byte(state, state->cpu->current_opcode_PC+1),
+              read_mem_byte(state, state->cpu->current_opcode_PC+1),
+              read_mem_byte(state, addr));
+    }
+    break;
     // SBC Zeropage
   case 0xE5:
     {

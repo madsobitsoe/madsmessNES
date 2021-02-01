@@ -577,6 +577,24 @@ void execute_next_action(nes_state *state) {
       state->cpu->registers->ACC = (uint8_t) res;
     }
     break;
+    // CPX memory
+  case 36:
+    {
+      uint8_t x = state->cpu->registers->X;
+      uint8_t value = read_mem_byte(state, ((uint16_t) state->cpu->high_addr_byte) << 8 | (uint16_t) state->cpu->low_addr_byte);
+      uint8_t res = x - value;
+      /* http://www.6502.org/tutorials/6502opcodes.html#CMP */
+      /* Compare sets flags as if a subtraction had been carried out. */
+      /* If the value in the accumulator is equal or greater than the compared value, */
+      /* the Carry will be set. */
+      /* The equal (Z) and negative (N) flags will be set based on equality or lack */
+      /* thereof and the sign (i.e. A>=$80) of the accumulator. */
+      if (x == value) { set_zero_flag(state); } else { clear_zero_flag(state); }
+      if (x >= value) { set_carry_flag(state); } else { clear_carry_flag(state); }
+      if (res >= 0x80)  { set_negative_flag(state); } else { clear_negative_flag(state); }
+    }
+
+    break;
 
     // clear carry flag
   case 90:
@@ -1380,6 +1398,16 @@ add_action_to_queue(state, 15);
     add_action_to_queue(state, 306);
     /*   6    address    W  write ACC to effective address */
     add_action_to_queue(state, 35);
+    break;
+    // CPX zeropage
+  case 0xE4:
+    // Clear out high addr byte, to ensure zero-page read
+    state->cpu->high_addr_byte = 0x0;
+    /* state->cpu->destination_reg = &state->cpu->registers->ACC; */
+    /* 2    PC     R  fetch address, increment PC */
+    add_action_to_queue(state, 2);
+    /*       3  address  R  read from effective address */
+    add_action_to_queue(state, 36);
     break;
     // SBC zeropage
   case 0xE5:
