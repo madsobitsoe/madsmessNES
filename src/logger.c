@@ -264,6 +264,19 @@ void disass(nes_state *state, char *output) {
               value);
     }
     break;
+    // ADC Zeropage
+  case 0x65:
+    {
+      uint16_t addr = (uint16_t) read_mem_byte(state, state->cpu->current_opcode_PC+1);
+
+      sprintf(output, "%04X  %02X %02X     ADC $%02X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              read_mem_byte(state, state->cpu->current_opcode_PC+1),
+              read_mem_byte(state, state->cpu->current_opcode_PC+1),
+              read_mem_byte(state, addr));
+    }
+    break;
     // PLA
   case 0x68:
     sprintf(output, "%04X  %02X        PLA",
@@ -584,6 +597,19 @@ void disass(nes_state *state, char *output) {
               value);
     }
     break;
+    // CMP Zeropage
+  case 0xC5:
+    {
+      uint16_t addr = (uint16_t) read_mem_byte(state, state->cpu->current_opcode_PC+1);
+
+      sprintf(output, "%04X  %02X %02X     CMP $%02X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              read_mem_byte(state, state->cpu->current_opcode_PC+1),
+              read_mem_byte(state, state->cpu->current_opcode_PC+1),
+              read_mem_byte(state, addr));
+    }
+    break;
     // INY
   case 0xC8:
     sprintf(output, "%04X  %02X        INY",
@@ -644,6 +670,20 @@ void disass(nes_state *state, char *output) {
               value);
     }
     break;
+    // SBC Zeropage
+  case 0xE5:
+    {
+      uint16_t addr = (uint16_t) read_mem_byte(state, state->cpu->current_opcode_PC+1);
+
+      sprintf(output, "%04X  %02X %02X     SBC $%02X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              read_mem_byte(state, state->cpu->current_opcode_PC+1),
+              read_mem_byte(state, state->cpu->current_opcode_PC+1),
+              read_mem_byte(state, addr));
+    }
+    break;
+
     // INX
   case 0xE8:
     sprintf(output, "%04X  %02X        INX",

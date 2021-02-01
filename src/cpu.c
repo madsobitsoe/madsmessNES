@@ -542,7 +542,7 @@ void execute_next_action(nes_state *state) {
     }
     break;
 
-    // CMP immediate
+    // CMP memory
   case 34:
     {
       uint8_t acc = state->cpu->registers->ACC;
@@ -560,7 +560,7 @@ void execute_next_action(nes_state *state) {
 
     }
     break;
-    // SBC X indexed indirect
+    // SBC memory
   case 35:
     {
       uint8_t acc = state->cpu->registers->ACC;
@@ -1046,6 +1046,17 @@ add_action_to_queue(state, 15);
     /*   6    address    W  write ACC to effective address */
     add_action_to_queue(state, 33);
     break;
+    // ADC zeropage
+  case 0x65:
+    // Clear out high addr byte, to ensure zero-page read
+    state->cpu->high_addr_byte = 0x0;
+    state->cpu->destination_reg = &state->cpu->registers->ACC;
+    /* 2    PC     R  fetch address, increment PC */
+    add_action_to_queue(state, 2);
+    /*       3  address  R  read from effective address */
+    add_action_to_queue(state, 33);
+    break;
+
     // ADC Immediate
   case 0x69:
     add_action_to_queue(state, 25);
@@ -1310,6 +1321,17 @@ add_action_to_queue(state, 15);
     /*   6    address    W  write ACC to effective address */
     add_action_to_queue(state, 34);
     break;
+    // CMP zeropage
+  case 0xC5:
+    // Clear out high addr byte, to ensure zero-page read
+    state->cpu->high_addr_byte = 0x0;
+    state->cpu->destination_reg = &state->cpu->registers->ACC;
+    /* 2    PC     R  fetch address, increment PC */
+    add_action_to_queue(state, 2);
+    /*       3  address  R  read from effective address */
+    add_action_to_queue(state, 34);
+    break;
+
     // INY - Increment Y register
   case 0xC8:
     state->cpu->source_reg = &state->cpu->registers->Y;
@@ -1359,7 +1381,18 @@ add_action_to_queue(state, 15);
     /*   6    address    W  write ACC to effective address */
     add_action_to_queue(state, 35);
     break;
-        // INX - Decrement X register
+    // SBC zeropage
+  case 0xE5:
+    // Clear out high addr byte, to ensure zero-page read
+    state->cpu->high_addr_byte = 0x0;
+    state->cpu->destination_reg = &state->cpu->registers->ACC;
+    /* 2    PC     R  fetch address, increment PC */
+    add_action_to_queue(state, 2);
+    /*       3  address  R  read from effective address */
+    add_action_to_queue(state, 35);
+    break;
+
+    // INX - Decrement X register
   case 0xE8:
     state->cpu->source_reg = &state->cpu->registers->X;
     add_action_to_queue(state, 200);
