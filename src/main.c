@@ -49,8 +49,8 @@ int parse_cmd(char *line) {
 void print_mem(nes_state *state, uint16_t loc) {
   printf("Printing memory starting at: %04X\n", loc);
   uint8_t count = 0;
-  while (count < 10) {
-    printf("%02X ", state->memory[loc+count]);
+  while (count < 64) {
+    printf("%02X ", read_mem_byte(state, loc+count));
     count++;
   }
   printf("\n");

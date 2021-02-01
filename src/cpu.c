@@ -41,6 +41,12 @@ void print_regs(nes_state *state) {
   print_status_reg(state);
   printf("\n");
 }
+// Print the "extra info" stored in the cpu-state
+void print_cpu_status(nes_state *state) {
+  printf("low_addr_byte: %02X\nhigh_addr_byte: %02X\noperand: %02X\n",
+         state->cpu->low_addr_byte, state->cpu->high_addr_byte,
+         state->cpu->operand);
+}
 
 
 void print_stack(nes_state *state) {
@@ -230,6 +236,8 @@ uint8_t read_mem_byte(nes_state *state, uint16_t memloc) {
 /*       3    PC     R  copy low address byte to PCL, fetch high address */
 /*       byte to PCH */
 void execute_next_action(nes_state *state) {
+  /*   // Add a stall cycle if page boundary crossed */
+  /* if (state->cpu->page_boundary_crossed) { add_action_to_queue(state, 0); } */
   switch (state->cpu->action_queue[state->cpu->next_action]) {
     // Dummy cycle, "do nothing"
   case 0:
@@ -714,11 +722,12 @@ void execute_next_action(nes_state *state) {
     break;
     // Fetch effective address low
   case 305:
+    /* printf("fetching low addr_byte from %04X\n", (uint16_t) state->cpu->operand); */
     state->cpu->low_addr_byte = read_mem_byte(state, (uint16_t) state->cpu->operand);
-
     break;
     // Fetch effective address high
   case 306:
+    /* printf("fetching high addr_byte from %04X\n", (uint16_t) state->cpu->operand+1); */
     state->cpu->high_addr_byte = read_mem_byte(state, (uint16_t) ((uint16_t) state->cpu->operand+1) & 0xff);
 
     break;
@@ -726,7 +735,8 @@ void execute_next_action(nes_state *state) {
     // Fetch zeropage pointer address, store pointer in "operand", increment PC
   case 307:
     {
-      state->cpu->operand = state->cpu->registers->PC;
+      state->cpu->operand = read_mem_byte(state, state->cpu->registers->PC);
+      /* printf("operand: %02X, PC: %04X\n",       state->cpu->operand, state->cpu->registers->PC); */
       state->cpu->registers->PC++;
     }
     break;
@@ -748,6 +758,58 @@ void execute_next_action(nes_state *state) {
       if ((state->memory[addr]) & 0x80) { set_negative_flag(state); } else { clear_negative_flag(state); }
     }
         break;
+
+        // Fetch effective address high from PC+1, add Y to low byte of effective address
+  case 310:
+    /* printf("fetching high addr_byte from %04X\n", (uint16_t) state->cpu->operand+1); */
+    state->cpu->high_addr_byte = read_mem_byte(state, (uint16_t) ((uint16_t) state->cpu->registers->PC+1) & 0xff);
+    /* printf("low_addr before: %02X\n", state->cpu->low_addr_byte); */
+    state->cpu->low_addr_byte += state->cpu->registers->Y;
+    /* printf("low_addr after: %02X\n", state->cpu->low_addr_byte); */
+    break;
+
+    // read from effective address, "fix high byte" (write to destination_reg)
+  case 311:
+    {
+    uint16_t addr = ((uint16_t) state->cpu->low_addr_byte) | (((uint16_t) state->cpu->high_addr_byte) << 8);
+    /* printf("read from %04X\n", addr); */
+    uint8_t value = read_mem_byte(state, addr);
+      *state->cpu->destination_reg = value;
+    // Set flags for LDA
+      if (value == 0) { set_zero_flag(state); } else { clear_zero_flag(state); }
+      if (value & 0x80) { set_negative_flag(state); } else { clear_negative_flag(state); }
+    }
+    break;
+
+
+     // Fetch low byte of address from operand (ZP-pointer)
+  case 312:
+      state->cpu->low_addr_byte = read_mem_byte(state, state->cpu->operand);
+    break;
+    // Fetch high byte of address from operand+1, add Y to low_addr
+  case 313:
+    {
+      state->cpu->high_addr_byte = read_mem_byte(state, state->cpu->operand+1);
+    // Add a stall cycle if page boundary crossed
+      /* This penalty applies to calculated 16bit addresses that are of the type base16 + offset, where the final memory location (base16 + offset) is in a different page than base. base16 can either be the direct or indirect version, but it'll be 16bits either way (and offset will be the contents of either x or y) */
+      uint16_t base = ((uint16_t) state->cpu->low_addr_byte) | (((uint16_t) state->cpu->high_addr_byte) << 8);
+      uint16_t offset = state->cpu->registers->Y;
+      if (((base & 0xFF) + offset) > 0xFF) {
+        add_action_to_queue(state, 0); // add a stall cycle
+        // fix high_addr (one cycle early, but hell)
+        if (state->cpu->high_addr_byte < 0xFF) {
+        state->cpu->high_addr_byte += 1;
+        }
+      }
+        uint16_t eff_addr = ((uint16_t) state->cpu->low_addr_byte) | (((uint16_t) state->cpu->high_addr_byte) << 8);
+        eff_addr += offset;
+        state->cpu->high_addr_byte = eff_addr >> 8;
+        state->cpu->low_addr_byte = eff_addr & 0xFF;
+
+        //      state->cpu->low_addr_byte += state->cpu->registers->Y;
+    }
+    break;
+
     // LSR A
   case 400:
     if (state->cpu->registers->ACC & 0x1) { set_carry_flag(state); }
@@ -1596,19 +1658,26 @@ add_action_to_queue(state, 15);
     }
     // TODO : Add extra action for crossing page boundary
     break;
+
     // LDA indirect-indexed, Y
   case 0xB1:
+    state->cpu->destination_reg = &state->cpu->registers->ACC;
   /* #    address   R/W description */
   /*      --- ----------- --- ------------------------------------------ */
   /*       1      PC       R  fetch opcode, increment PC */
   /*       2      PC       R  fetch pointer address, increment PC */
+    add_action_to_queue(state, 307);
+    /* add_action_to_queue(state, 11); // increment PC, nowhere to store pointer */
   /*       3    pointer    R  fetch effective address low */
+    add_action_to_queue(state, 312);
   /*       4   pointer+1   R  fetch effective address high, */
   /*                          add Y to low byte of effective address */
+    add_action_to_queue(state, 313);
   /*       5   address+Y*  R  read from effective address, */
   /*                          fix high byte of effective address */
+    add_action_to_queue(state, 311);
   /*       6+  address+Y   R  read from effective address */
-
+    // ^Will be added in 313 if necessary
   /*      Notes: The effective address is always fetched from zero page, */
   /*             i.e. the zero page boundary crossing is not handled. */
 

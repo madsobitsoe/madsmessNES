@@ -1,4 +1,4 @@
-CYCLES=8800
-LINES=3060
+CYCLES=8880
+LINES=$(wc testlog.log | cut -d' ' -f5)
 ./emu -c $CYCLES test/nestest.nes
-diff <(head -$LINES testlog.log) <(head -$LINES test/nestest.log)
+diff -c <(head -$LINES testlog.log) <(head -$LINES test/nestest.log)

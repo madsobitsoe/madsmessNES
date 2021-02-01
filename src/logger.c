@@ -920,8 +920,20 @@ void disass(nes_state *state, char *output) {
       uint8_t operand = read_mem_byte(state, state->cpu->current_opcode_PC+1);
       uint8_t low_addr = read_mem_byte(state, (uint16_t) operand);
       uint8_t high_addr = read_mem_byte(state, (uint16_t) (operand + 1));
-      low_addr += state->cpu->registers->Y;
+
+      /* uint16_t effective_addr = (uint16_t) low_addr | ((uint16_t) high_addr) << 8; */
+      /* effective_addr += (uint16_t) state->cpu->registers->Y; */
+      // check if page boundary was crossed and fix addresses
+      uint16_t base = (uint16_t) low_addr | ((uint16_t) high_addr) << 8;
+      uint16_t offset = (uint16_t) state->cpu->registers->Y;
+      if (((base & 0xFF) + offset) > 0xFF) {
+        /* effective_addr += 0x100; */
+        if (high_addr < 0xFF) { high_addr++; }
+      }
       uint16_t effective_addr = (uint16_t) low_addr | ((uint16_t) high_addr) << 8;
+      effective_addr += (uint16_t) state->cpu->registers->Y;
+
+
       uint8_t value = read_mem_byte(state, effective_addr);
       sprintf(output, "%04X  %02X %02X     LDA ($%02X),Y = %02X%02X @ %04X = %02X",
               state->cpu->current_opcode_PC,

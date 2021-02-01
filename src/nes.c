@@ -86,6 +86,7 @@ void print_state(nes_state *state) {
   printf("Cycle:  %lld\n", state->cpu->cpu_cycle);
   printf("Stall cycles: %d\n", state->cpu->stall_cycles);
   print_regs(state);
+  print_cpu_status(state);
   print_stack(state);
   printf("Addr_dest: %p\tAddr_source: %p\tAddr_X: %p\n", (state->cpu->destination_reg), (state->cpu->source_reg), &(state->cpu->registers->X));
 }
