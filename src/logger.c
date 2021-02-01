@@ -161,6 +161,29 @@ void disass(nes_state *state, char *output) {
             state->cpu->current_opcode_PC + read_mem_byte(state, state->cpu->current_opcode_PC+1) + 2);
     break;
 
+    // ORA indirect-indexed,Y
+  case 0x11:
+    {
+      uint8_t operand = read_mem_byte(state, state->cpu->current_opcode_PC+1);
+      uint8_t low_addr = read_mem_byte(state, (uint16_t) operand);
+      uint8_t high_addr = read_mem_byte(state, (uint16_t) (operand + 1));
+      low_addr += state->cpu->registers->Y;
+      uint16_t effective_addr = (uint16_t) low_addr | ((uint16_t) high_addr) << 8;
+      uint8_t value = read_mem_byte(state, effective_addr);
+      sprintf(output, "%04X  %02X %02X     ORA ($%02X),Y = %02X%02X @ %04X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              operand,
+              operand,
+              high_addr,
+              low_addr,
+              effective_addr,
+              value);
+    }
+    break;
+
+
+
     // JSR
   case 0x20:
     sprintf(output, "%04X  %02X %02X %02X  JSR $%02X%02X",
@@ -270,6 +293,30 @@ void disass(nes_state *state, char *output) {
             read_mem_byte(state, state->cpu->current_opcode_PC+1),
             state->cpu->current_opcode_PC + read_mem_byte(state, state->cpu->current_opcode_PC+1) + 2);
     break;
+
+    // AND indirect-indexed,Y
+  case 0x31:
+    {
+
+      uint8_t operand = read_mem_byte(state, state->cpu->current_opcode_PC+1);
+      uint8_t low_addr = read_mem_byte(state, (uint16_t) operand);
+      uint8_t high_addr = read_mem_byte(state, (uint16_t) (operand + 1));
+      low_addr += state->cpu->registers->Y;
+      uint16_t effective_addr = (uint16_t) low_addr | ((uint16_t) high_addr) << 8;
+      uint8_t value = read_mem_byte(state, effective_addr);
+      sprintf(output, "%04X  %02X %02X     AND ($%02X),Y = %02X%02X @ %04X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              operand,
+              operand,
+              high_addr,
+              low_addr,
+              effective_addr,
+              value);
+    }
+    break;
+
+
     // RTI - Return from Interrupt
   case 0x40:
     sprintf(output, "%04X  %02X        RTI",
@@ -393,6 +440,29 @@ void disass(nes_state *state, char *output) {
             state->cpu->current_opcode_PC + read_mem_byte(state, state->cpu->current_opcode_PC+1) + 2);
     break;
 
+    // EOR indirect-indexed,Y
+  case 0x51:
+    {
+
+      uint8_t operand = read_mem_byte(state, state->cpu->current_opcode_PC+1);
+      uint8_t low_addr = read_mem_byte(state, (uint16_t) operand);
+      uint8_t high_addr = read_mem_byte(state, (uint16_t) (operand + 1));
+      low_addr += state->cpu->registers->Y;
+      uint16_t effective_addr = (uint16_t) low_addr | ((uint16_t) high_addr) << 8;
+      uint8_t value = read_mem_byte(state, effective_addr);
+      sprintf(output, "%04X  %02X %02X     EOR ($%02X),Y = %02X%02X @ %04X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              operand,
+              operand,
+              high_addr,
+              low_addr,
+              effective_addr,
+              value);
+    }
+    break;
+
+
     // RTS - Return from subroutine
   case 0x60:
     sprintf(output, "%04X  %02X        RTS",
@@ -504,6 +574,29 @@ void disass(nes_state *state, char *output) {
             read_mem_byte(state, state->cpu->current_opcode_PC+1),
             state->cpu->current_opcode_PC + read_mem_byte(state, state->cpu->current_opcode_PC+1) + 2);
     break;
+
+    // ADC indirect-indexed,Y
+  case 0x71:
+    {
+
+      uint8_t operand = read_mem_byte(state, state->cpu->current_opcode_PC+1);
+      uint8_t low_addr = read_mem_byte(state, (uint16_t) operand);
+      uint8_t high_addr = read_mem_byte(state, (uint16_t) (operand + 1));
+      low_addr += state->cpu->registers->Y;
+      uint16_t effective_addr = (uint16_t) low_addr | ((uint16_t) high_addr) << 8;
+      uint8_t value = read_mem_byte(state, effective_addr);
+      sprintf(output, "%04X  %02X %02X     ADC ($%02X),Y = %02X%02X @ %04X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              operand,
+              operand,
+              high_addr,
+              low_addr,
+              effective_addr,
+              value);
+    }
+    break;
+
     // SEI
   case 0x78:
     sprintf(output, "%04X  %02X        SEI",
@@ -624,6 +717,31 @@ void disass(nes_state *state, char *output) {
             read_mem_byte(state, state->cpu->current_opcode_PC+1),
             state->cpu->current_opcode_PC + read_mem_byte(state, state->cpu->current_opcode_PC+1) + 2);
     break;
+
+
+    // STA indirect-indexed,Y
+  case 0x91:
+    {
+
+      uint8_t operand = read_mem_byte(state, state->cpu->current_opcode_PC+1);
+      uint8_t low_addr = read_mem_byte(state, (uint16_t) operand);
+      uint8_t high_addr = read_mem_byte(state, (uint16_t) (operand + 1));
+      low_addr += state->cpu->registers->Y;
+      uint16_t effective_addr = (uint16_t) low_addr | ((uint16_t) high_addr) << 8;
+      uint8_t value = read_mem_byte(state, effective_addr);
+      sprintf(output, "%04X  %02X %02X     STA ($%02X),Y = %02X%02X @ %04X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              operand,
+              operand,
+              high_addr,
+              low_addr,
+              effective_addr,
+              value);
+    }
+    break;
+
+
     // TYA
   case 0x98:
     sprintf(output, "%04X  %02X        TYA",
@@ -791,6 +909,31 @@ void disass(nes_state *state, char *output) {
             read_mem_byte(state, state->cpu->current_opcode_PC+1),
             state->cpu->current_opcode_PC + read_mem_byte(state, state->cpu->current_opcode_PC+1) + 2);
     break;
+    // LDA indirect-indexed,Y
+  case 0xB1:
+    {
+      /* LDY #$04 */
+      /*   LDA ($02),Y */
+      /*   In the above case, Y is loaded with four (4), and the vector is given as ($02) */
+      /* If zero page memory $02-$03 contains 00 80, then the effective address from the vector ($02) plus the offset (Y) would be $8004. */
+
+      uint8_t operand = read_mem_byte(state, state->cpu->current_opcode_PC+1);
+      uint8_t low_addr = read_mem_byte(state, (uint16_t) operand);
+      uint8_t high_addr = read_mem_byte(state, (uint16_t) (operand + 1));
+      low_addr += state->cpu->registers->Y;
+      uint16_t effective_addr = (uint16_t) low_addr | ((uint16_t) high_addr) << 8;
+      uint8_t value = read_mem_byte(state, effective_addr);
+      sprintf(output, "%04X  %02X %02X     LDA ($%02X),Y = %02X%02X @ %04X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              operand,
+              operand,
+              high_addr,
+              low_addr,
+              effective_addr,
+              value);
+    }
+    break;
     // CLV
   case 0xB8:
     sprintf(output, "%04X  %02X        CLV",
@@ -944,6 +1087,30 @@ void disass(nes_state *state, char *output) {
             read_mem_byte(state, state->cpu->current_opcode_PC+1),
             state->cpu->current_opcode_PC + read_mem_byte(state, state->cpu->current_opcode_PC+1) + 2);
     break;
+
+    // CMP indirect-indexed,Y
+  case 0xD1:
+    {
+
+      uint8_t operand = read_mem_byte(state, state->cpu->current_opcode_PC+1);
+      uint8_t low_addr = read_mem_byte(state, (uint16_t) operand);
+      uint8_t high_addr = read_mem_byte(state, (uint16_t) (operand + 1));
+      low_addr += state->cpu->registers->Y;
+      uint16_t effective_addr = (uint16_t) low_addr | ((uint16_t) high_addr) << 8;
+      uint8_t value = read_mem_byte(state, effective_addr);
+      sprintf(output, "%04X  %02X %02X     CMP ($%02X),Y = %02X%02X @ %04X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              operand,
+              operand,
+              high_addr,
+              low_addr,
+              effective_addr,
+              value);
+    }
+    break;
+
+
     // CLD
   case 0xD8:
     sprintf(output, "%04X  %02X        CLD",
@@ -1100,6 +1267,30 @@ void disass(nes_state *state, char *output) {
             read_mem_byte(state, state->cpu->current_opcode_PC+1),
             state->cpu->current_opcode_PC + read_mem_byte(state, state->cpu->current_opcode_PC+1) + 2);
     break;
+
+    // SBC indirect-indexed,Y
+  case 0xF1:
+    {
+
+      uint8_t operand = read_mem_byte(state, state->cpu->current_opcode_PC+1);
+      uint8_t low_addr = read_mem_byte(state, (uint16_t) operand);
+      uint8_t high_addr = read_mem_byte(state, (uint16_t) (operand + 1));
+      low_addr += state->cpu->registers->Y;
+      uint16_t effective_addr = (uint16_t) low_addr | ((uint16_t) high_addr) << 8;
+      uint8_t value = read_mem_byte(state, effective_addr);
+      sprintf(output, "%04X  %02X %02X     SBC ($%02X),Y = %02X%02X @ %04X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              operand,
+              operand,
+              high_addr,
+              low_addr,
+              effective_addr,
+              value);
+    }
+    break;
+
+
     // SED
   case 0xF8:
     sprintf(output, "%04X  %02X        SED",

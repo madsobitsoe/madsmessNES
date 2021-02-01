@@ -1588,14 +1588,6 @@ add_action_to_queue(state, 15);
   case 0xC0:
     add_action_to_queue(state, 26);
     break;
-    // CPX Immediate
-  case 0xE0:
-    add_action_to_queue(state, 27);
-    break;
-    // NOP
-  case 0xEA:
-    add_action_to_queue(state, 0);
-    break;
     // BCS
   case 0xB0:
     add_action_to_queue(state, 9);
@@ -1603,6 +1595,28 @@ add_action_to_queue(state, 15);
       add_action_to_queue(state, 10);
     }
     // TODO : Add extra action for crossing page boundary
+    break;
+    // LDA indirect-indexed, Y
+  case 0xB1:
+  /* #    address   R/W description */
+  /*      --- ----------- --- ------------------------------------------ */
+  /*       1      PC       R  fetch opcode, increment PC */
+  /*       2      PC       R  fetch pointer address, increment PC */
+  /*       3    pointer    R  fetch effective address low */
+  /*       4   pointer+1   R  fetch effective address high, */
+  /*                          add Y to low byte of effective address */
+  /*       5   address+Y*  R  read from effective address, */
+  /*                          fix high byte of effective address */
+  /*       6+  address+Y   R  read from effective address */
+
+  /*      Notes: The effective address is always fetched from zero page, */
+  /*             i.e. the zero page boundary crossing is not handled. */
+
+  /*             * The high byte of the effective address may be invalid */
+  /*               at this time, i.e. it may be smaller by $100. */
+
+  /*             + This cycle will be executed only if the effective address */
+  /*               was invalid during cycle #5, i.e. page boundary was crossed. */
     break;
     // CLV - Clear Overflow Flag
   case 0xB8:
@@ -1723,6 +1737,10 @@ add_action_to_queue(state, 15);
   case 0xD8:
     add_action_to_queue(state, 93);
     break;
+    // CPX Immediate
+  case 0xE0:
+    add_action_to_queue(state, 27);
+    break;
     // SBC indexed indirect
   case 0xE1:
     /*   2      PC       R  fetch pointer address, increment PC */
@@ -1787,8 +1805,14 @@ add_action_to_queue(state, 15);
     state->cpu->source_reg = &state->cpu->registers->X;
     add_action_to_queue(state, 200);
     break;
-                                             // SBC Immediate
-                                             case 0xE9:
+    // SBC Immediate
+  case 0xE9:
+    add_action_to_queue(state, 28);
+    break;
+    // NOP
+  case 0xEA:
+    add_action_to_queue(state, 0);
+    break;
 // SBC Immediate (Illegal opcode)
   case 0xEB:
     add_action_to_queue(state, 28);
