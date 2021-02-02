@@ -291,7 +291,7 @@ int main (int argc, char **argv) {
   }
 
   logger_stop_logger();
-  free_rom(my_rom);
+  /* free_rom(my_rom); */
   destroy_state(state);
   free(rombuf);
   return 0;

@@ -1,6 +1,8 @@
 #include <stdlib.h>
 #include "nes.h"
 #include "memory.h"
+#include "rom_loader.h"
+
 
 void step(nes_state *state) {
   // Update the master clock by one
@@ -38,8 +40,9 @@ nes_state* init_state() {
   ppu_state *ppu = malloc(sizeof(ppu_state));
   ppu_registers *ppu_regs = malloc(sizeof(ppu_registers));
   ppu->registers = ppu_regs;
-  ppu->memory = malloc(0x4000);
-  ppu->oam_memory = malloc(0x100);
+  ppu->ppu_vram = malloc(0x800); // 2kb vram
+  ppu->chr_rom = malloc(0x2000); //8kb for chr_rom
+  ppu->oam_memory = malloc(0x100); // 256 bytes OAM memory
   state->ppu = ppu;
   state->ppu->ppu_cycle = 0;
   state->ppu->ppu_scanline = 0;
@@ -53,9 +56,11 @@ void destroy_state(nes_state *state) {
   free(state->cpu);
   free(state->memory);
   free(state->ppu->registers);
-  free(state->ppu->memory);
+  free(state->ppu->ppu_vram);
+  /* free(state->ppu->chr_rom); */
   free(state->ppu->oam_memory);
   free(state->ppu);
+  free_rom(state->rom);
   free(state);
 }
 

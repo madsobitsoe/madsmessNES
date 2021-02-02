@@ -1,5 +1,6 @@
 #include "memory.h"
 
+
 uint8_t read_mem(nes_state *state, uint16_t memloc) {
   /*   8000-FFFF is the main area the cartridge ROM is mapped to in memory. Sometimes it can be bank switched, usually in 32k, 16k, or 8k sized banks. */
   if (memloc >= 0x8000 && memloc <= 0xFFFF) {
@@ -147,4 +148,48 @@ void write_mem(nes_state *state, uint16_t memloc, uint8_t value) {
 
 
 
+}
+
+
+// Read from the memory mapped in the PPU
+// https://wiki.nesdev.com/w/index.php/PPU_memory_map
+uint8_t read_mem_ppu(nes_state *state, uint16_t memloc) {
+  /* Address range	Size	Description */
+  /*   $0000-$0FFF	$1000	Pattern table 0 */
+  /*   $1000-$1FFF	$1000	Pattern table 1 */
+  /*   $2000-$23FF	$0400	Nametable 0 */
+  /*   $2400-$27FF	$0400	Nametable 1 */
+  /*   $2800-$2BFF	$0400	Nametable 2 */
+  /*   $2C00-$2FFF	$0400	Nametable 3 */
+  /*   $3000-$3EFF	$0F00	Mirrors of $2000-$2EFF */
+  /*   $3F00-$3F1F	$0020	Palette RAM indexes */
+  /*   $3F20-$3FFF	$00E0	Mirrors of $3F00-$3F1F */
+
+  /* $0000-1FFF is normally mapped by the cartridge to a CHR-ROM or CHR-RAM, often with a bank switching mechanism. */
+  if (memloc <= 0x1FFF) {
+    return state->rom->chr_rom[memloc];
+  }
+  /* $2000-2FFF is normally mapped to the 2kB NES internal VRAM, providing 2 nametables with a mirroring configuration controlled by the cartridge, but it can be partly or fully remapped to RAM on the cartridge, allowing up to 4 simultaneous nametables. */
+  if (memloc <= 0x2FFF) {
+    return state->ppu->ppu_vram[memloc - 0x2000];
+  }
+  /* $3000-3EFF is usually a mirror of the 2kB region from $2000-2EFF. The PPU does not render from this address range, so this space has negligible utility. */
+  // Mirrored VRAM
+  if (memloc <= 0x3EFF) {
+    return state->ppu->ppu_vram[memloc - 0x3000];
+  }
+
+  /* $3F00-3FFF is not configurable, always mapped to the internal palette control. */
+  // Read from internal palette
+  if (memloc <= 0x3FFF) {
+    uint8_t translated = memloc & 0x1F;
+    return state->ppu->palette_table[translated];
+  }
+  // Outside of memory, signal a fatal error
+  state->fatal_error = true;
+  state->running = false;
+  return 0;
+}
+void write_mem_ppu(nes_state *state, uint16_t memloc, uint8_t value) {
+  return;
 }

@@ -44,7 +44,9 @@ typedef struct PPU_REGISTERS {
 
 // https://wiki.nesdev.com/w/index.php/PPU_memory_map
 typedef struct PPU_STATE {
-  uint8_t *memory; // 16 kb memory
+  uint8_t *ppu_vram; // 2kb vram in ppu
+  uint8_t *palette_table; // 32 byte palette table
+  uint8_t *chr_rom; // CHR_ROM in the rom (8kb only for now)
   uint8_t *oam_memory; // 256 bytes of Object Attribute Memory
   ppu_registers *registers;
   uint16_t ppu_cycle;
