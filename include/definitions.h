@@ -29,18 +29,42 @@ typedef struct CPU_STATE {
 
 } cpu_state;
 
+// See: https://wiki.nesdev.com/w/index.php/PPU_registers
+typedef struct PPU_REGISTERS {
+  uint8_t ppu_ctrl; // $2000
+  uint8_t ppu_mask; // $2001
+  uint8_t ppu_status; // $2002
+  uint8_t oam_addr; // $2003
+  uint8_t oam_data; // $2004
+  uint8_t ppu_scroll; // $2005
+  uint8_t ppu_addr; // $2006
+  uint8_t ppu_data; // $2007
+  uint8_t oam_dma; // $4014
+} ppu_registers;
+
+// https://wiki.nesdev.com/w/index.php/PPU_memory_map
+  typedef struct PPU_STATE {
+    uint8_t *memory; // 16 kb memory
+    uint8_t *oam_memory; // 256 bytes of Object Attribute Memory
+    ppu_registers *registers;
+    uint16_t ppu_cycle;
+    uint16_t ppu_scanline;
+    uint32_t ppu_frame;
+  } ppu_state;
+
 // A struct representing the state of the console
 // With pointers to cpu (registers), memory(stack+ram), ppu and apu
 // Also contains information about the master clock
 typedef struct NES_STATE {
   uint64_t master_clock;
-    /* registers *registers; */
-    cpu_state *cpu;
-    uint8_t *memory; // Pointer to start of memory
-    uint8_t *rom; // Pointer to memory containing the ROM
-    bool running; // is the emulator still running?
-    uint16_t ppu_cycle;
-    uint16_t ppu_scanline;
+  /* registers *registers; */
+  cpu_state *cpu;
+  uint8_t *memory; // Pointer to start of memory
+  uint8_t *rom; // Pointer to memory containing the ROM
+  bool running; // is the emulator still running?
+  ppu_state *ppu;
+  uint16_t ppu_cycle;
+  uint16_t ppu_scanline;
   bool fatal_error;
 } nes_state;
 

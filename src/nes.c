@@ -33,9 +33,17 @@ nes_state* init_state() {
   // Set up memory (malloc)
   state->memory = malloc(2048); // 2kb ram (at least for now)
   state->running = true;
-  state->ppu_cycle = 0;
-  state->ppu_scanline = 0;
   state->fatal_error = false;
+  // PPU init
+  ppu_state *ppu = malloc(sizeof(ppu_state));
+  ppu_registers *ppu_regs = malloc(sizeof(ppu_registers));
+  ppu->registers = ppu_regs;
+  ppu->memory = malloc(0x4000);
+  ppu->oam_memory = malloc(0x100);
+  state->ppu = ppu;
+  state->ppu->ppu_cycle = 0;
+  state->ppu->ppu_scanline = 0;
+  state->ppu->ppu_frame = 0;
   return state;
 }
 
@@ -44,6 +52,10 @@ void destroy_state(nes_state *state) {
   free(state->cpu->registers);
   free(state->cpu);
   free(state->memory);
+  free(state->ppu->registers);
+  free(state->ppu->memory);
+  free(state->ppu->oam_memory);
+  free(state->ppu);
   free(state);
 }
 
@@ -72,7 +84,7 @@ void reset(nes_state *state) {
   set_interrupt_flag(state);
   state->cpu->registers->SP = 0xFD;
   state->cpu->cpu_cycle = 7;
-  state->ppu_cycle = 18;
+  state->ppu->ppu_cycle = 18;
 }
 
 
@@ -92,10 +104,10 @@ void print_state(nes_state *state) {
 
 void ppu_step(nes_state *state) {
   for (int i = 0; i < 3; i++) {
-    state->ppu_cycle++;
-    if (state->ppu_cycle > 340) {
-      state->ppu_cycle = 0;
-      state->ppu_scanline++;
+    state->ppu->ppu_cycle++;
+    if (state->ppu->ppu_cycle > 340) {
+      state->ppu->ppu_cycle = 0;
+      state->ppu->ppu_scanline++;
     }
   }
 }
