@@ -12,7 +12,7 @@
 #include "cpu.h"
 #include "nes.h"
 #include "logger.h"
-
+#include "memory.h"
 
 void run_for_n_cycles(nes_state *state, uint32_t cycles) {
   uint32_t count = 0;
@@ -58,7 +58,7 @@ void print_mem(nes_state *state, uint16_t loc) {
   printf("Printing memory starting at: %04X\n", loc);
   uint8_t count = 0;
   while (count < 64) {
-    printf("%02X ", read_mem_byte(state, loc+count));
+    printf("%02X ", read_mem(state, loc+count));
     count++;
   }
   printf("\n");

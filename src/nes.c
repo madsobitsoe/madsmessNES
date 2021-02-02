@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include "nes.h"
+#include "memory.h"
 
 void step(nes_state *state) {
   // Update the master clock by one
@@ -10,7 +11,7 @@ void step(nes_state *state) {
   // Step one cycle in CPU
   if (state->cpu->next_action == state->cpu->end_of_queue) {
     state->cpu->current_opcode_PC = state->cpu->registers->PC;
-    state->cpu->current_opcode = read_mem_byte(state, state->cpu->registers->PC);
+    state->cpu->current_opcode = read_mem(state, state->cpu->registers->PC);
     logger_log(state);
   }
   cpu_step(state);
@@ -71,8 +72,6 @@ void reset(nes_state *state) {
   set_interrupt_flag(state);
   state->cpu->registers->SP = 0xFD;
   state->cpu->cpu_cycle = 7;
-  /* state->current_opcode_PC = 0xFFFD; */
-  /* state->current_opcode = read_mem_byte(state, state->registers->PC); */
   state->ppu_cycle = 18;
 }
 

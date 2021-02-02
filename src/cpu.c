@@ -3,7 +3,7 @@
 #include "cpu.h"
 #include "nes.h"
 #include "logger.h"
-
+#include "memory.h"
 
 void init_registers(registers *regs) {
   regs->ACC = 0;
@@ -61,12 +61,11 @@ void print_stack(nes_state *state) {
   /* int start = end - 10; */
   for (int i = 10; i >= 0; i--) {
     if ((uint8_t) end - i == state->cpu->registers->SP) {
-      printf("%s%04X\t%02X\n", spline, end - i + offset, read_mem_byte(state, end - i + offset));
+      printf("%s%04X\t%02X\n", spline, end - i + offset, read_mem(state, end - i + offset));
     }
     else {
-      printf("%s%04X\t%02X\n", space, end - i + offset, read_mem_byte(state, end - i + offset));
+      printf("%s%04X\t%02X\n", space, end - i + offset, read_mem(state, end - i + offset));
     }
-    /* printf("        %04X\t%02X\n", state->cpu->registers->SP-i + offset, read_mem_byte(state, state->cpu->registers->SP - i + offset)); */
   }
 }
 
@@ -75,7 +74,7 @@ void print_stack(nes_state *state) {
 void set_pc(nes_state *state, unsigned short pc) {
   state->cpu->registers->PC = pc;
   state->cpu->current_opcode_PC = pc;
-  state->cpu->current_opcode = read_mem_byte(state, pc);
+  state->cpu->current_opcode = read_mem(state, pc);
 }
 
 void set_negative_flag(nes_state *state) {
@@ -163,68 +162,11 @@ bool is_negative_flag_set(nes_state *state) {
 
 
 
-// Translate a memory location to the actual memory location in the nes
-  uint16_t translate_memory_location(unsigned short memloc) {
-  /*   0000-07FF is RAM*/
-  if (memloc <= 0x7ff) { return memloc; }
-  /* 0800-1FFF are mirrors of RAM (you AND the address with 07FF to get the effective address)    */
-  if (memloc <= 0x1fff) { return memloc & 0x7ff; }
-  /*   2000-2007 is how the CPU writes to the PPU, 2008-3FFF are mirrors of that address range. */
-  if (memloc <= 0x3fff) { return 0x2000 + (memloc & 0x7); }
-
-  /*   4000-401F is for IO ports and sound */
-  /*   4020-4FFF is rarely used, but can be used by some cartridges */
-  /*   5000-5FFF is rarely used, but can be used by some cartridges, often as bank switching registers, not actual memory, but some cartridges put RAM there */
-  /*   6000-7FFF is often cartridge WRAM. Since emulators usually emulate this whether it actually exists in the cartridge or not, there's a little bit of controversy about NES headers not adequately representing a cartridge. */
-  /*   8000-FFFF is the main area the cartridge ROM is mapped to in memory. Sometimes it can be bank switched, usually in 32k, 16k, or 8k sized banks. */
-  /*   The NES header takes up 16 bytes, after that is the PRG pages, then after that is the CHR pages. You look at the header to see how big the PRG and CHR of the cartridge are, see documentation for more details. The NES header does not exist outside of .NES files, you won't find it on any NES cartridges. */
-
-  /*   So you load a Mapper 0 (NROM) cartridge into memory, and the first two PRG banks appear in NES memory at 8000-FFFF. If there is only one 16k bank, then it is mirrored at 8000-BFFF and C000-FFFF. */
-
-  /*   When the CPU boots up, it reads the Reset vector, located at FFFC. That contains a 16-bit value which tells the CPU where to jump to. */
-  /*   The first thing a game will do when it starts up is repeatedly read PPU register 2002 to wait for the NES to warm up, so you won't see a game doing anything until you throw in some rudimentary PPU emulation. */
-  /*   Then the game clears the RAM, and waits for the NES to warm up some more. Then the system is ready, and the game will start running. */
-
-  /* if (memloc > 0xffff) { */
-  /*   // Somehow signal an invalid memloc */
-  /* } */
-  return memloc; // TODO Fix this
-  }
-
-
 // Push a value to the stack
 void push(nes_state *state, uint8_t value) {
-  state->memory[state->cpu->registers->SP + 0x100] = value;
+  write_mem(state, state->cpu->registers->SP + 0x100, value);
   state->cpu->registers->SP--;;
 }
-
-
-uint16_t read_mem_short(nes_state *state, uint16_t memloc) {
-  /* printf("Translating memory location 0x%x.\n", memloc); */
-  uint16_t translated = translate_memory_location(memloc);
-  /* printf("Translated memory location 0x%x.\n", translated); */
-
-  uint16_t value = 0;
-  if (translated >= 0x0 && translated <= 0x7ff) {
-    value = state->memory[translated] | state->memory[translated+1] << 8;
-  }
-  else if (translated >= 0x8000 && translated <= 0xffff) {
-    unsigned short loc = translated - 0xc000;
-    value = (uint16_t) state->rom[loc] | (((uint16_t) state->rom[loc+1]) << 8);
-  }
-  else {
-    printf("location outside of valid memory! %04X\n", memloc);
-    print_state(state);
-  }
-  return value;
-}
-uint8_t read_mem_byte(nes_state *state, uint16_t memloc) {
-  uint16_t first_read = read_mem_short(state, memloc);
-  return (uint8_t) (first_read & 0xff);
-}
-
-
-
 
 // Instructions take 2-7 cycles.
 // Each cycle is either a READ or a WRITE cycle - never both
@@ -245,23 +187,23 @@ void execute_next_action(nes_state *state) {
     break;
     /* R fetch opcode, increment PC - first cycle in all instructions*/
   case 1:
-    state->cpu->current_opcode = read_mem_byte(state, state->cpu->registers->PC);
+    state->cpu->current_opcode = read_mem(state, state->cpu->registers->PC);
     state->cpu->registers->PC++;
     break;
     /* R  fetch low address byte, increment PC */
   case 2:
-    state->cpu->low_addr_byte = read_mem_byte(state, state->cpu->registers->PC);
+    state->cpu->low_addr_byte = read_mem(state, state->cpu->registers->PC);
     state->cpu->registers->PC++;
     break;
     /* R  copy low address byte to PCL, fetch high address byte to PCH */
   case 3:
     // Read the high address first to avoid overwriting PC (having to store it)
-    state->cpu->high_addr_byte = read_mem_byte(state, state->cpu->registers->PC);
+    state->cpu->high_addr_byte = read_mem(state, state->cpu->registers->PC);
     state->cpu->registers->PC =  ((uint16_t) state->cpu->low_addr_byte | (state->cpu->high_addr_byte << 8));
     break;
     // fetch value, save to destination, increment PC, affect N and Z flags
   case 4:
-    *(state->cpu->destination_reg) = read_mem_byte(state, state->cpu->registers->PC);
+    *(state->cpu->destination_reg) = read_mem(state, state->cpu->registers->PC);
     state->cpu->registers->PC++;
     if (*state->cpu->destination_reg == 0) { set_zero_flag(state); }
     else { clear_zero_flag(state);}
@@ -286,7 +228,7 @@ void execute_next_action(nes_state *state) {
     break;
     // fetch operand, increment PC
   case 9:
-    state->cpu->operand = read_mem_byte(state, state->cpu->registers->PC);
+    state->cpu->operand = read_mem(state, state->cpu->registers->PC);
     state->cpu->registers->PC++;
     break;
 
@@ -307,7 +249,7 @@ void execute_next_action(nes_state *state) {
   case 13:
     {
       uint16_t addr = ((uint16_t) state->cpu->high_addr_byte) << 8 | (uint16_t) state->cpu->low_addr_byte;
-      uint8_t value = read_mem_byte(state, addr);
+      uint8_t value = read_mem(state, addr);
       if ((value & state->cpu->registers->ACC) == 0) { set_zero_flag(state); }
       else { clear_zero_flag(state); }
       if ((value & 128) == 128) { set_negative_flag(state); } else {clear_negative_flag(state); }
@@ -321,17 +263,17 @@ void execute_next_action(nes_state *state) {
     // pull PCL from stack, increment S
   case 15:
     state->cpu->registers->PC &= 0xFF00;
-    state->cpu->registers->PC |= (uint8_t) read_mem_byte(state, state->cpu->registers->SP + 0x100);
+    state->cpu->registers->PC |= (uint8_t) read_mem(state, state->cpu->registers->SP + 0x100);
     state->cpu->registers->SP++;
     break;
     // pull PCH from stack
   case 16:
     state->cpu->registers->PC &= 0x00FF;
-    state->cpu->registers->PC |= ((uint8_t) read_mem_byte(state, state->cpu->registers->SP + 0x100) << 8);
+    state->cpu->registers->PC |= ((uint8_t) read_mem(state, state->cpu->registers->SP + 0x100) << 8);
     break;
     // Pull ACC from stack (In PLA) and affect flags
   case 17:
-    state->cpu->registers->ACC = read_mem_byte(state, state->cpu->registers->SP + 0x100);
+    state->cpu->registers->ACC = read_mem(state, state->cpu->registers->SP + 0x100);
     if (state->cpu->registers->ACC == 0) { set_zero_flag(state); } else { clear_zero_flag(state); }
     if (state->cpu->registers->ACC > 0x7f) { set_negative_flag(state); } else { clear_negative_flag(state); }
     break;
@@ -344,7 +286,7 @@ void execute_next_action(nes_state *state) {
   case 19:
     {
       // Two instructions (PLP and RTI) pull a byte from the stack and set all the flags. They ignore bits 5 and 4.
-      uint8_t value = read_mem_byte(state, state->cpu->registers->SP + 0x100);
+      uint8_t value = read_mem(state, state->cpu->registers->SP + 0x100);
       // Ignore bits 4 and 5
       value &= 0xcf;
       uint8_t cur_flags = state->cpu->registers->SR;
@@ -366,7 +308,7 @@ void execute_next_action(nes_state *state) {
     // And immediate, increment PC
   case 21:
     {
-      uint8_t res = state->cpu->registers->ACC & (read_mem_byte(state, state->cpu->registers->PC));
+      uint8_t res = state->cpu->registers->ACC & (read_mem(state, state->cpu->registers->PC));
       if (res == 0) { set_zero_flag(state); } else { clear_zero_flag(state); }
       if (res > 0x7F) { set_negative_flag(state); } else { clear_negative_flag(state); }
       state->cpu->registers->ACC = res;
@@ -377,7 +319,7 @@ void execute_next_action(nes_state *state) {
   case 22:
     {
       uint8_t acc = state->cpu->registers->ACC;
-      uint8_t value = read_mem_byte(state, state->cpu->registers->PC);
+      uint8_t value = read_mem(state, state->cpu->registers->PC);
       uint8_t res = acc - value;
       /* http://www.6502.org/tutorials/6502opcodes.html#CMP */
       /* Compare sets flags as if a subtraction had been carried out. */
@@ -395,7 +337,7 @@ void execute_next_action(nes_state *state) {
     // ORA immediate, increment PC
   case 23:
     {
-      uint8_t res = state->cpu->registers->ACC | (read_mem_byte(state, state->cpu->registers->PC));
+      uint8_t res = state->cpu->registers->ACC | (read_mem(state, state->cpu->registers->PC));
       if (res == 0) { set_zero_flag(state); } else { clear_zero_flag(state); }
       if (res > 0x7F) { set_negative_flag(state); } else { clear_negative_flag(state); }
       state->cpu->registers->ACC = res;
@@ -405,7 +347,7 @@ void execute_next_action(nes_state *state) {
     // EOR immediate, increment PC
   case 24:
     {
-      uint8_t res = state->cpu->registers->ACC ^ (read_mem_byte(state, state->cpu->registers->PC));
+      uint8_t res = state->cpu->registers->ACC ^ (read_mem(state, state->cpu->registers->PC));
       if (res == 0) { set_zero_flag(state); } else { clear_zero_flag(state); }
       if (res > 0x7F) { set_negative_flag(state); } else { clear_negative_flag(state); }
       state->cpu->registers->ACC = res;
@@ -416,7 +358,7 @@ void execute_next_action(nes_state *state) {
   case 25:
     {
       uint8_t acc = state->cpu->registers->ACC;
-      uint8_t value = read_mem_byte(state, state->cpu->registers->PC);
+      uint8_t value = read_mem(state, state->cpu->registers->PC);
       uint16_t res = ((uint16_t) acc) + ((uint16_t) value);
       if (is_carry_flag_set(state)) { res++; }
       if ((uint8_t) res == 0) { set_zero_flag(state); } else { clear_zero_flag(state); }
@@ -434,7 +376,7 @@ void execute_next_action(nes_state *state) {
   case 26:
     {
       uint8_t y = state->cpu->registers->Y;
-      uint8_t value = read_mem_byte(state, state->cpu->registers->PC);
+      uint8_t value = read_mem(state, state->cpu->registers->PC);
       uint8_t res = y - value;
       /* http://www.6502.org/tutorials/6502opcodes.html#CMP */
       /* Compare sets flags as if a subtraction had been carried out. */
@@ -454,7 +396,7 @@ void execute_next_action(nes_state *state) {
   case 27:
     {
       uint8_t x = state->cpu->registers->X;
-      uint8_t value = read_mem_byte(state, state->cpu->registers->PC);
+      uint8_t value = read_mem(state, state->cpu->registers->PC);
       uint8_t res = x - value;
       /* http://www.6502.org/tutorials/6502opcodes.html#CMP */
       /* Compare sets flags as if a subtraction had been carried out. */
@@ -475,7 +417,7 @@ void execute_next_action(nes_state *state) {
     {
       uint8_t acc = state->cpu->registers->ACC;
       // The only difference between ADC and SBC should be that SBC "complements" (negates) it's argument
-      uint8_t value = ~read_mem_byte(state, state->cpu->registers->PC);
+      uint8_t value = ~read_mem(state, state->cpu->registers->PC);
       uint16_t res = ((uint16_t) acc) + ((uint16_t) value);
       if (is_carry_flag_set(state)) { res++; }
       if ((uint8_t) res == 0) { set_zero_flag(state); } else { clear_zero_flag(state); }
@@ -492,7 +434,7 @@ void execute_next_action(nes_state *state) {
   case 29:
     {
       // Two instructions (PLP and RTI) pull a byte from the stack and set all the flags. They ignore bits 5 and 4.
-      uint8_t value = read_mem_byte(state, state->cpu->registers->SP + 0x100);
+      uint8_t value = read_mem(state, state->cpu->registers->SP + 0x100);
       // Ignore bits 4 and 5
       value &= 0xcf;
       uint8_t cur_flags = state->cpu->registers->SR;
@@ -508,7 +450,7 @@ void execute_next_action(nes_state *state) {
   case 30:
     {
       uint16_t addr = ((uint16_t) state->cpu->high_addr_byte << 8) | ((uint16_t) state->cpu->low_addr_byte);
-      uint8_t res = state->cpu->registers->ACC | (read_mem_byte(state, addr));
+      uint8_t res = state->cpu->registers->ACC | (read_mem(state, addr));
       if (res == 0) { set_zero_flag(state); } else { clear_zero_flag(state); }
       if (res > 0x7F) { set_negative_flag(state); } else { clear_negative_flag(state); }
       state->cpu->registers->ACC = res;
@@ -518,7 +460,7 @@ void execute_next_action(nes_state *state) {
   case 31:
     {
       uint16_t addr = ((uint16_t) state->cpu->high_addr_byte << 8) | ((uint16_t) state->cpu->low_addr_byte);
-      uint8_t res = state->cpu->registers->ACC & (read_mem_byte(state, addr));
+      uint8_t res = state->cpu->registers->ACC & (read_mem(state, addr));
       if (res == 0) { set_zero_flag(state); } else { clear_zero_flag(state); }
       if (res > 0x7F) { set_negative_flag(state); } else { clear_negative_flag(state); }
       state->cpu->registers->ACC = res;
@@ -528,7 +470,7 @@ void execute_next_action(nes_state *state) {
   case 32:
     {
       uint16_t addr = ((uint16_t) state->cpu->high_addr_byte << 8) | ((uint16_t) state->cpu->low_addr_byte);
-      uint8_t res = state->cpu->registers->ACC ^ (read_mem_byte(state, addr));
+      uint8_t res = state->cpu->registers->ACC ^ (read_mem(state, addr));
       if (res == 0) { set_zero_flag(state); } else { clear_zero_flag(state); }
       if (res > 0x7F) { set_negative_flag(state); } else { clear_negative_flag(state); }
       state->cpu->registers->ACC = res;
@@ -539,7 +481,7 @@ void execute_next_action(nes_state *state) {
   case 33:
     {
       uint8_t acc = state->cpu->registers->ACC;
-      uint8_t value = read_mem_byte(state, ((uint16_t) state->cpu->high_addr_byte) << 8 | (uint16_t) state->cpu->low_addr_byte);
+      uint8_t value = read_mem(state, ((uint16_t) state->cpu->high_addr_byte) << 8 | (uint16_t) state->cpu->low_addr_byte);
       uint16_t res = ((uint16_t) acc) + ((uint16_t) value);
       if (is_carry_flag_set(state)) { res++; }
       if ((uint8_t) res == 0) { set_zero_flag(state); } else { clear_zero_flag(state); }
@@ -556,7 +498,7 @@ void execute_next_action(nes_state *state) {
     /* case 34: */
     /* { */
     /*   uint8_t acc = state->cpu->registers->ACC; */
-    /*   uint8_t value = read_mem_byte(state, ((uint16_t) state->cpu->high_addr_byte) << 8 | (uint16_t) state->cpu->low_addr_byte); */
+    /*   uint8_t value = read_mem(state, ((uint16_t) state->cpu->high_addr_byte) << 8 | (uint16_t) state->cpu->low_addr_byte); */
     /*   uint8_t res = acc - value; */
     /*   /\* http://www.6502.org/tutorials/6502opcodes.html#CMP *\/ */
     /*   /\* Compare sets flags as if a subtraction had been carried out. *\/ */
@@ -574,7 +516,7 @@ void execute_next_action(nes_state *state) {
   case 34:
     {
       uint8_t reg = *state->cpu->source_reg;
-      uint8_t value = read_mem_byte(state, ((uint16_t) state->cpu->high_addr_byte) << 8 | (uint16_t) state->cpu->low_addr_byte);
+      uint8_t value = read_mem(state, ((uint16_t) state->cpu->high_addr_byte) << 8 | (uint16_t) state->cpu->low_addr_byte);
       uint8_t res = reg - value;
       /* http://www.6502.org/tutorials/6502opcodes.html#CMP */
       /* Compare sets flags as if a subtraction had been carried out. */
@@ -593,7 +535,7 @@ void execute_next_action(nes_state *state) {
     {
       uint8_t acc = state->cpu->registers->ACC;
       // The only difference between ADC and SBC should be that SBC "complements" (negates) it's argument
-      uint8_t value = ~read_mem_byte(state, ((uint16_t) state->cpu->high_addr_byte) << 8 | (uint16_t) state->cpu->low_addr_byte);
+      uint8_t value = ~read_mem(state, ((uint16_t) state->cpu->high_addr_byte) << 8 | (uint16_t) state->cpu->low_addr_byte);
       uint16_t res = ((uint16_t) acc) + ((uint16_t) value);
       if (is_carry_flag_set(state)) { res++; }
       if ((uint8_t) res == 0) { set_zero_flag(state); } else { clear_zero_flag(state); }
@@ -689,13 +631,13 @@ void execute_next_action(nes_state *state) {
 
      // Fetch low byte of address, increment PC
   case 300:
-    state->cpu->low_addr_byte = read_mem_byte(state, state->cpu->registers->PC);
+    state->cpu->low_addr_byte = read_mem(state, state->cpu->registers->PC);
     state->cpu->registers->PC++;
     /* printf("Fetched low byte: %02X\n", state->cpu->low_addr_byte); */
     break;
     // Fetch high byte of address, increment PC
   case 301:
-    state->cpu->high_addr_byte = read_mem_byte(state, state->cpu->registers->PC);
+    state->cpu->high_addr_byte = read_mem(state, state->cpu->registers->PC);
     state->cpu->registers->PC++;
     break;
     // Write register to effective address
@@ -710,7 +652,7 @@ void execute_next_action(nes_state *state) {
   case 303:
     {
       uint16_t addr = state->cpu->high_addr_byte << 8 | state->cpu->low_addr_byte;
-      uint8_t value = read_mem_byte(state, addr);
+      uint8_t value = read_mem(state, addr);
       (*state->cpu->destination_reg) = value;
       if (value == 0) { set_zero_flag(state); } else { clear_zero_flag(state); }
       if (value & 0x80) { set_negative_flag(state); } else { clear_negative_flag(state); }
@@ -718,25 +660,25 @@ void execute_next_action(nes_state *state) {
     break;
     // Read from address, add X-register to result, store in "operand"
   case 304:
-    state->cpu->operand = read_mem_byte(state, state->cpu->registers->PC - 1);
+    state->cpu->operand = read_mem(state, state->cpu->registers->PC - 1);
     state->cpu->operand += state->cpu->registers->X;
     break;
     // Fetch effective address low
   case 305:
     /* printf("fetching low addr_byte from %04X\n", (uint16_t) state->cpu->operand); */
-    state->cpu->low_addr_byte = read_mem_byte(state, (uint16_t) state->cpu->operand);
+    state->cpu->low_addr_byte = read_mem(state, (uint16_t) state->cpu->operand);
     break;
     // Fetch effective address high
   case 306:
     /* printf("fetching high addr_byte from %04X\n", (uint16_t) state->cpu->operand+1); */
-    state->cpu->high_addr_byte = read_mem_byte(state, (uint16_t) ((uint16_t) state->cpu->operand+1) & 0xff);
+    state->cpu->high_addr_byte = read_mem(state, (uint16_t) ((uint16_t) state->cpu->operand+1) & 0xff);
 
     break;
 
     // Fetch zeropage pointer address, store pointer in "operand", increment PC
   case 307:
     {
-      state->cpu->operand = read_mem_byte(state, state->cpu->registers->PC);
+      state->cpu->operand = read_mem(state, state->cpu->registers->PC);
       /* printf("operand: %02X, PC: %04X\n",       state->cpu->operand, state->cpu->registers->PC); */
       state->cpu->registers->PC++;
     }
@@ -763,7 +705,7 @@ void execute_next_action(nes_state *state) {
         // Fetch effective address high from PC+1, add Y to low byte of effective address
   case 310:
     /* printf("fetching high addr_byte from %04X\n", (uint16_t) state->cpu->operand+1); */
-    state->cpu->high_addr_byte = read_mem_byte(state, (uint16_t) ((uint16_t) state->cpu->registers->PC+1) & 0xff);
+    state->cpu->high_addr_byte = read_mem(state, (uint16_t) ((uint16_t) state->cpu->registers->PC+1) & 0xff);
     /* printf("low_addr before: %02X\n", state->cpu->low_addr_byte); */
     state->cpu->low_addr_byte += state->cpu->registers->Y;
     /* printf("low_addr after: %02X\n", state->cpu->low_addr_byte); */
@@ -774,7 +716,7 @@ void execute_next_action(nes_state *state) {
     {
     uint16_t addr = ((uint16_t) state->cpu->low_addr_byte) | (((uint16_t) state->cpu->high_addr_byte) << 8);
     /* printf("read from %04X\n", addr); */
-    uint8_t value = read_mem_byte(state, addr);
+    uint8_t value = read_mem(state, addr);
       *state->cpu->destination_reg = value;
     // Set flags for LDA
       if (value == 0) { set_zero_flag(state); } else { clear_zero_flag(state); }
@@ -785,12 +727,12 @@ void execute_next_action(nes_state *state) {
 
      // Fetch low byte of address from operand (ZP-pointer)
   case 312:
-      state->cpu->low_addr_byte = read_mem_byte(state, state->cpu->operand);
+      state->cpu->low_addr_byte = read_mem(state, state->cpu->operand);
     break;
     // Fetch high byte of address from operand+1, add Y to low_addr
   case 313:
     {
-      state->cpu->high_addr_byte = read_mem_byte(state, state->cpu->operand+1);
+      state->cpu->high_addr_byte = read_mem(state, state->cpu->operand+1);
     // Add a stall cycle if page boundary crossed
       /* This penalty applies to calculated 16bit addresses that are of the type base16 + offset, where the final memory location (base16 + offset) is in a different page than base. base16 can either be the direct or indirect version, but it'll be 16bits either way (and offset will be the contents of either x or y) */
       uint16_t base = ((uint16_t) state->cpu->low_addr_byte) | (((uint16_t) state->cpu->high_addr_byte) << 8);
@@ -816,7 +758,7 @@ void execute_next_action(nes_state *state) {
     {
     uint16_t addr = ((uint16_t) state->cpu->low_addr_byte) | (((uint16_t) state->cpu->high_addr_byte) << 8);
 
-    uint8_t value = (*state->cpu->destination_reg) | read_mem_byte(state, addr);
+    uint8_t value = (*state->cpu->destination_reg) | read_mem(state, addr);
     *state->cpu->destination_reg = value;
     // Set flags for ORA
       if (value == 0) { set_zero_flag(state); } else { clear_zero_flag(state); }
@@ -829,7 +771,7 @@ void execute_next_action(nes_state *state) {
     {
     uint16_t addr = ((uint16_t) state->cpu->low_addr_byte) | (((uint16_t) state->cpu->high_addr_byte) << 8);
 
-    uint8_t value = (*state->cpu->destination_reg) & read_mem_byte(state, addr);
+    uint8_t value = (*state->cpu->destination_reg) & read_mem(state, addr);
       *state->cpu->destination_reg = value;
     // Set flags for AND
       if (value == 0) { set_zero_flag(state); } else { clear_zero_flag(state); }
@@ -841,7 +783,7 @@ void execute_next_action(nes_state *state) {
     {
     uint16_t addr = ((uint16_t) state->cpu->low_addr_byte) | (((uint16_t) state->cpu->high_addr_byte) << 8);
 
-    uint8_t value = (*state->cpu->destination_reg) ^ read_mem_byte(state, addr);
+    uint8_t value = (*state->cpu->destination_reg) ^ read_mem(state, addr);
     *state->cpu->destination_reg = value;
     // Set flags for ORA
       if (value == 0) { set_zero_flag(state); } else { clear_zero_flag(state); }
@@ -854,7 +796,7 @@ void execute_next_action(nes_state *state) {
     {
       uint8_t acc = *state->cpu->destination_reg;
       uint16_t addr = ((uint16_t) state->cpu->low_addr_byte) | (((uint16_t) state->cpu->high_addr_byte) << 8);
-      uint8_t value = read_mem_byte(state, addr);
+      uint8_t value = read_mem(state, addr);
       uint16_t res = ((uint16_t) acc) + ((uint16_t) value);
       // Set flags for ADC
       if (is_carry_flag_set(state)) { res++; }
@@ -873,7 +815,7 @@ void execute_next_action(nes_state *state) {
     {
       uint8_t reg = *state->cpu->destination_reg;
       uint16_t addr = ((uint16_t) state->cpu->low_addr_byte) | (((uint16_t) state->cpu->high_addr_byte) << 8);
-      uint8_t value = read_mem_byte(state, addr);
+      uint8_t value = read_mem(state, addr);
       uint8_t res = reg - value;
       /* http://www.6502.org/tutorials/6502opcodes.html#CMP */
       /* Compare sets flags as if a subtraction had been carried out. */
@@ -891,7 +833,7 @@ void execute_next_action(nes_state *state) {
     {
       uint8_t acc = *state->cpu->destination_reg;
       uint16_t addr = ((uint16_t) state->cpu->low_addr_byte) | (((uint16_t) state->cpu->high_addr_byte) << 8);
-      uint8_t value = ~(read_mem_byte(state, addr));
+      uint8_t value = ~(read_mem(state, addr));
       uint16_t res = ((uint16_t) acc) + ((uint16_t) value);
       // Set flags for ADC
       if (is_carry_flag_set(state)) { res++; }
@@ -917,7 +859,7 @@ void execute_next_action(nes_state *state) {
     // The "extra boundary cycle" is always added
   case 321:
     {
-      state->cpu->high_addr_byte = read_mem_byte(state, state->cpu->operand+1);
+      state->cpu->high_addr_byte = read_mem(state, state->cpu->operand+1);
 
       /* This penalty applies to calculated 16bit addresses that are of the type base16 + offset, where the final memory location (base16 + offset) is in a different page than base. base16 can either be the direct or indirect version, but it'll be 16bits either way (and offset will be the contents of either x or y) */
       uint16_t base = ((uint16_t) state->cpu->low_addr_byte) | (((uint16_t) state->cpu->high_addr_byte) << 8);
@@ -942,7 +884,7 @@ void execute_next_action(nes_state *state) {
     // use "operand" as latch
     {
       uint16_t addr = ((uint16_t) state->cpu->low_addr_byte) | (((uint16_t) state->cpu->high_addr_byte) << 8);
-      state->cpu->operand = read_mem_byte(state,addr);
+      state->cpu->operand = read_mem(state,addr);
     }
     break;
     // R  fetch PCH, copy "latch" to PCL
@@ -958,7 +900,7 @@ void execute_next_action(nes_state *state) {
         }
       // else, wraparound
       else { addr &= 0xff00; }
-      uint16_t pch = (uint16_t) read_mem_byte(state,addr);
+      uint16_t pch = (uint16_t) read_mem(state,addr);
       state->cpu->registers->PC = ((uint16_t) state->cpu->operand) | (pch << 8);
     }
     break;
@@ -1057,7 +999,7 @@ void execute_next_action(nes_state *state) {
                       case 408:
                         {
                           uint16_t addr = ((uint16_t) state->cpu->high_addr_byte) << 8 | (uint16_t)state->cpu->low_addr_byte;
-                          uint8_t value = read_mem_byte(state, addr);
+                          uint8_t value = read_mem(state, addr);
                           if (value & 0x1) { set_carry_flag(state); }
                           else { clear_carry_flag(state); }
                           value = value >> 1;
@@ -1070,7 +1012,7 @@ void execute_next_action(nes_state *state) {
                         case 409:
                           {
                             uint16_t addr = ((uint16_t) state->cpu->high_addr_byte) << 8 | (uint16_t)state->cpu->low_addr_byte;
-                            uint8_t value = read_mem_byte(state, addr);
+                            uint8_t value = read_mem(state, addr);
                             if (value & 0x80) { set_carry_flag(state); }
                             else { clear_carry_flag(state); }
                             value = value << 1;
@@ -1085,7 +1027,7 @@ void execute_next_action(nes_state *state) {
                           case 410:
                             {
                               uint16_t addr = ((uint16_t) state->cpu->high_addr_byte) << 8 | (uint16_t)state->cpu->low_addr_byte;
-                              uint8_t value = read_mem_byte(state, addr);
+                              uint8_t value = read_mem(state, addr);
                               bool carry = is_carry_flag_set(state);
                               uint8_t lsb = value & 1;
                               value = value >> 1;
@@ -1099,7 +1041,7 @@ void execute_next_action(nes_state *state) {
                             case 411:
                               {
                                 uint16_t addr = ((uint16_t) state->cpu->high_addr_byte) << 8 | (uint16_t)state->cpu->low_addr_byte;
-                                uint8_t value = read_mem_byte(state, addr);
+                                uint8_t value = read_mem(state, addr);
                                 bool carry = is_carry_flag_set(state);
                                 uint8_t msb = value & 0x80;
                                 value = value << 1;
@@ -1107,7 +1049,7 @@ void execute_next_action(nes_state *state) {
                                 if (value & 0x80 ) { set_negative_flag(state); } else { clear_negative_flag(state); }
                                 if (msb) { set_carry_flag(state); } else { clear_carry_flag(state); }
                                 if (value == 0) { set_zero_flag(state); } else { clear_zero_flag(state); }
-                                state->memory[addr] = value;
+                                write_mem(state, addr, value);/* ->memory[addr] = value; */
                               }
                               break;
 
@@ -1125,7 +1067,7 @@ void add_action_to_queue(nes_state *state, uint16_t action) {
 
 void add_instruction_to_queue(nes_state *state) {
   add_action_to_queue(state, 1);
-  switch (read_mem_byte(state, state->cpu->registers->PC)) {
+  switch (read_mem(state, state->cpu->registers->PC)) {
     // ORA indexed indirect
   case 0x01:
     /*   2      PC       R  fetch pointer address, increment PC */

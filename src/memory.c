@@ -3,7 +3,7 @@
 uint8_t read_mem(nes_state *state, uint16_t memloc) {
   /*   8000-FFFF is the main area the cartridge ROM is mapped to in memory. Sometimes it can be bank switched, usually in 32k, 16k, or 8k sized banks. */
   if (memloc >= 0x8000 && memloc <= 0xFFFF) {
-    return state->rom[memloc];
+    return state->rom[memloc - 0xC000];
   }
   /*   0000-07FF is RAM*/
   /* 0800-1FFF are mirrors of RAM (you AND the address with 07FF to get the effective address)    */
