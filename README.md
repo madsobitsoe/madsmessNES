@@ -57,3 +57,15 @@ The "test-suite" in `test.sh` runs the nestest.nes rom and compares the log-file
 
 nestest.nes: http://nickmass.com/images/nestest.nes
 nestest.log: https://www.qmtpro.com/~nes/misc/nestest.txt
+
+
+## TODO
+### Proper memory mapping
+### ROM-loading
+That properly parses roms
+### PPU
+#### "Render in console"
+ASCII-pixels could be an "easy" and "fun" way to begin the PPU implementation
+#### Render with SDL
+
+### APU

@@ -1403,8 +1403,8 @@ void print_log(nes_state *state) {
          state->cpu->registers->Y,
          state->cpu->registers->SR,
          state->cpu->registers->SP,
-         state->ppu_frame,
-          state->ppu_cycle,
+         state->ppu_scanline,
+         state->ppu_cycle,
          (int32_t) state->cpu->cpu_cycle);
 
 }
@@ -1422,7 +1422,7 @@ void logger_log(nes_state *state)
           state->cpu->registers->Y,
           state->cpu->registers->SR,
           state->cpu->registers->SP,
-          state->ppu_frame,
+          state->ppu_scanline,
           state->ppu_cycle,
           (int32_t) state->cpu->cpu_cycle);
 

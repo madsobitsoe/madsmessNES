@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "cpu.h"
+#include "nes.h"
 #include "logger.h"
 
 
@@ -2298,6 +2299,12 @@ add_action_to_queue(state, 15);
   case 0xF8:
     add_action_to_queue(state, 103);
     break;
+    // unimplemented instruction is a fatal error
+    // Flag it so emulation can be stopped
+  default:
+    state->fatal_error = true;
+    state->running = false;
+    break;
   }
 
 }
@@ -2309,15 +2316,4 @@ void cpu_step(nes_state *state) {
   execute_next_action(state);
   state->cpu->cpu_cycle++;
 
-}
-
-
-void ppu_step(nes_state *state) {
-  for (int i = 0; i < 3; i++) {
-    state->ppu_cycle++;
-    if (state->ppu_cycle > 340) {
-      state->ppu_cycle = 0;
-      state->ppu_frame++;
-    }
-  }
 }

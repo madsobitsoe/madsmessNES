@@ -30,7 +30,7 @@ all: emu
 # 	$(CC) -o $@ $^ $(CFLAGS)
 
 emu: src/cpu.c src/nes.c  src/logger.c src/main.c
-	gcc -Wall -Wextra -o emu src/cpu.c src/nes.c src/logger.c src/main.c -Iinclude -lreadline
+	gcc -Wall -Wextra -o emu src/memory.c src/cpu.c src/nes.c src/logger.c src/main.c -Iinclude -lreadline
 
 .PHONY: clean
 

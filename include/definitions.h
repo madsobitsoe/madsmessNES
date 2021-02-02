@@ -23,10 +23,10 @@ typedef struct CPU_STATE {
   uint8_t operand;
   uint16_t current_opcode_PC;
   uint64_t cpu_cycle;
-  uint8_t stall_cycles;
   uint16_t action_queue[10];
   uint8_t next_action;
   uint8_t end_of_queue;
+
 } cpu_state;
 
 // A struct representing the state of the console
@@ -40,7 +40,8 @@ typedef struct NES_STATE {
     uint8_t *rom; // Pointer to memory containing the ROM
     bool running; // is the emulator still running?
     uint16_t ppu_cycle;
-    uint16_t ppu_frame;
-  } nes_state;
+    uint16_t ppu_scanline;
+  bool fatal_error;
+} nes_state;
 
 #endif

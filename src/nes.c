@@ -32,9 +32,9 @@ nes_state* init_state() {
   // Set up memory (malloc)
   state->memory = malloc(2048); // 2kb ram (at least for now)
   state->running = true;
-  state->cpu->stall_cycles = 0;
   state->ppu_cycle = 0;
-  state->ppu_frame = 0;
+  state->ppu_scanline = 0;
+  state->fatal_error = false;
   return state;
 }
 
@@ -84,9 +84,19 @@ void attach_rom(nes_state *state, unsigned char *rommem) {
 }
 void print_state(nes_state *state) {
   printf("Cycle:  %lld\n", state->cpu->cpu_cycle);
-  printf("Stall cycles: %d\n", state->cpu->stall_cycles);
   print_regs(state);
   print_cpu_status(state);
   print_stack(state);
   printf("Addr_dest: %p\tAddr_source: %p\tAddr_X: %p\n", (state->cpu->destination_reg), (state->cpu->source_reg), &(state->cpu->registers->X));
+}
+
+
+void ppu_step(nes_state *state) {
+  for (int i = 0; i < 3; i++) {
+    state->ppu_cycle++;
+    if (state->ppu_cycle > 340) {
+      state->ppu_cycle = 0;
+      state->ppu_scanline++;
+    }
+  }
 }

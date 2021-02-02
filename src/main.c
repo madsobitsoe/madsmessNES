@@ -15,10 +15,18 @@
 
 
 void run_for_n_cycles(nes_state *state, uint32_t cycles) {
-  for (uint32_t i = 0; i < cycles; i++)
-    {
-      step(state);
-    }
+  uint32_t count = 0;
+  while (count < cycles && !state->fatal_error) {
+    /* for (uint32_t i = 0; i < cycles; i++) */
+    /*        { */
+    step(state);
+    count++;
+  }
+  if (state->fatal_error) {
+    printf("Fatal error at cycle: %llu\n", state->cpu->cpu_cycle);
+    print_state(state);
+    print_log(state);
+  }
 }
 
 int parse_cmd(char *line) {

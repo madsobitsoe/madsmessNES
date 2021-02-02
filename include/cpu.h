@@ -11,7 +11,6 @@ void print_regs(nes_state *state);
 void print_cpu_status(nes_state *state);
 void print_stack(nes_state *state);
 void cpu_step(nes_state *state);
-void ppu_step(nes_state *state);
 nes_state* init_state();
 void set_pc(nes_state *state, unsigned short pc);
 uint8_t read_mem_byte(nes_state *state, unsigned short memloc);
