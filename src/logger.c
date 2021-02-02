@@ -561,6 +561,30 @@ void disass(nes_state *state, char *output) {
             state->cpu->current_opcode);
     break;
 
+    // JMP indirect
+  case 0x6C:
+    {
+      uint8_t operand1 = read_mem_byte(state, state->cpu->current_opcode_PC+1);
+      uint8_t operand2 = read_mem_byte(state, state->cpu->current_opcode_PC+2);
+      uint16_t addr_addr1 = (uint16_t) operand1 | ((uint16_t) operand2) << 8;
+      // Ensure page wrap is handled
+      uint16_t addr_addr2 = addr_addr1 + 1;
+      if (!((addr_addr1 & 0xff00) == (addr_addr2 & 0xff00))) {
+        addr_addr2 = (addr_addr1 & 0xff00);
+      }
+      uint16_t effective_addr = ((uint16_t) read_mem_byte(state, addr_addr1)) | (((uint16_t) read_mem_byte(state, addr_addr2)) << 8);
+
+      sprintf(output, "%04X  %02X %02X %02X  JMP ($%04X) = %04X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              operand1,
+              operand2,
+              addr_addr1,
+              effective_addr);
+    }
+    break;
+
+
     // ADC Absolute
   case 0x6D:
     {
