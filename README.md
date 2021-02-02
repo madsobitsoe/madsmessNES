@@ -69,3 +69,11 @@ ASCII-pixels could be an "easy" and "fun" way to begin the PPU implementation
 #### Render with SDL
 
 ### APU
+
+
+
+## Relevant docs and pages
+Something about clock signals: https://lateblt.livejournal.com/88105.html
+### PPU
+Reddit thread on "how to do PPU": https://www.reddit.com/r/EmuDev/comments/7k08b9/not_sure_where_to_start_with_the_nes_ppu/
+another reddit thread: https://www.reddit.com/r/EmuDev/comments/evu3u2/what_does_the_nes_ppu_actually_do/

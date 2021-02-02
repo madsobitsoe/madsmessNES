@@ -3,7 +3,15 @@
 uint8_t read_mem(nes_state *state, uint16_t memloc) {
   /*   8000-FFFF is the main area the cartridge ROM is mapped to in memory. Sometimes it can be bank switched, usually in 32k, 16k, or 8k sized banks. */
   if (memloc >= 0x8000 && memloc <= 0xFFFF) {
-    return state->rom[memloc - 0xC000];
+    /* return state->rom[memloc - 0xC000]; */
+    uint16_t translated = memloc - 0x8000;
+    if (translated <= 0x4000) {
+      return state->rom->prg_rom1[translated];
+    }
+    else {
+      translated -= 0x4000;
+      return state->rom->prg_rom2[translated];
+    }
   }
   /*   0000-07FF is RAM*/
   /* 0800-1FFF are mirrors of RAM (you AND the address with 07FF to get the effective address)    */
@@ -12,14 +20,46 @@ uint8_t read_mem(nes_state *state, uint16_t memloc) {
   }
   /*   2000-2007 is how the CPU writes to the PPU, 2008-3FFF are mirrors of that address range. */
   if (memloc >= 0x2000 && memloc <= 0x3FFF) {
+    uint16_t translated = memloc & 0x2007;
+    switch (translated) {
+    case 0x2000:
+      return state->ppu->registers->ppu_ctrl;
+      break;
+    case 0x2001:
+      return state->ppu->registers->ppu_mask;
+      break;
+    case 0x2002:
+      return state->ppu->registers->ppu_status;
+      break;
+    case 0x2003:
+      return state->ppu->registers->oam_addr;
+      break;
+    case 0x2004:
+      return state->ppu->registers->oam_data;
+      break;
+    case 0x2005:
+      return state->ppu->registers->ppu_scroll;
+      break;
+    case 0x2006:
+      return state->ppu->registers->ppu_addr;
+      break;
+    case 0x2007:
+      return state->ppu->registers->ppu_data;
+      break;
+    }
     // TODO - replace with reading PPU IO
     return 0;
   }
   /*   4000-401F is for IO ports and sound */
   if (memloc >= 0x4000 && memloc <= 0x401F) {
-    // TODO - Replace with reading APU IO
-    return 0;
+    // TODO - implement reading APU IO
+    switch(memloc) {
+    case 0x4014:
+      return state->ppu->registers->oam_dma;
+      break;
+    }
   }
+
   /*   4020-4FFF is rarely used, but can be used by some cartridges */
   /*   5000-5FFF is rarely used, but can be used by some cartridges, often as bank switching registers, not actual memory, but some cartridges put RAM there */
   /*   6000-7FFF is often cartridge WRAM. Since emulators usually emulate this whether it actually exists in the cartridge or not, there's a little bit of controversy about NES headers not adequately representing a cartridge. */
@@ -40,6 +80,7 @@ uint8_t read_mem(nes_state *state, uint16_t memloc) {
   return 0;
 }
 
+
 void write_mem(nes_state *state, uint16_t memloc, uint8_t value) {
   /*   8000-FFFF is the main area the cartridge ROM is mapped to in memory. Sometimes it can be bank switched, usually in 32k, 16k, or 8k sized banks. */
 
@@ -58,11 +99,46 @@ void write_mem(nes_state *state, uint16_t memloc, uint8_t value) {
   /*   2000-2007 is how the CPU writes to the PPU, 2008-3FFF are mirrors of that address range. */
   if (memloc >= 0x2000 && memloc <= 0x3FFF) {
     // TODO - replace with writing to PPU IO regs
+    if (memloc >= 0x2000 && memloc <= 0x3FFF) {
+      uint16_t translated = memloc & 0x2007;
+      switch (translated) {
+      case 0x2000:
+        state->ppu->registers->ppu_ctrl = value;
+        break;
+      case 0x2001:
+        state->ppu->registers->ppu_mask = value;
+        break;
+      case 0x2002:
+        state->ppu->registers->ppu_status = value;
+        break;
+      case 0x2003:
+        state->ppu->registers->oam_addr = value;
+        break;
+      case 0x2004:
+        state->ppu->registers->oam_data = value;
+        break;
+      case 0x2005:
+        state->ppu->registers->ppu_scroll = value;
+        break;
+      case 0x2006:
+        state->ppu->registers->ppu_addr = value;
+        break;
+      case 0x2007:
+        state->ppu->registers->ppu_data = value;
+        break;
+      }
+      // TODO - replace with reading PPU IO
+    }
     return;
   }
   /*   4000-401F is for IO ports and sound */
   if (memloc >= 0x4000 && memloc <= 0x401f) {
-    // TODO - replace with writing to APU IO
+    // TODO - implement writing to APU IO
+    switch(memloc) {
+    case 0x4014:
+      state->ppu->registers->oam_dma = value;
+      break;
+    }
     return;
   }
   /*   4020-4FFF is rarely used, but can be used by some cartridges */

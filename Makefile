@@ -29,8 +29,8 @@ all: emu
 # emu: $(OBJ)
 # 	$(CC) -o $@ $^ $(CFLAGS)
 
-emu: src/cpu.c src/nes.c src/logger.c src/memory.c src/main.c
-	gcc -Wall -Wextra -o emu src/memory.c src/cpu.c src/nes.c src/logger.c src/main.c -Iinclude -lreadline
+emu: src/cpu.c src/rom_loader.c src/nes.c src/logger.c src/memory.c src/main.c src/rom_loader.c include/rom_loader.h
+	gcc -Wall -Wextra -o emu src/memory.c src/cpu.c src/rom_loader.c src/nes.c src/logger.c src/main.c -Iinclude -lreadline
 
 .PHONY: clean
 

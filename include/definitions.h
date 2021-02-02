@@ -43,24 +43,48 @@ typedef struct PPU_REGISTERS {
 } ppu_registers;
 
 // https://wiki.nesdev.com/w/index.php/PPU_memory_map
-  typedef struct PPU_STATE {
-    uint8_t *memory; // 16 kb memory
-    uint8_t *oam_memory; // 256 bytes of Object Attribute Memory
-    ppu_registers *registers;
-    uint16_t ppu_cycle;
-    uint16_t ppu_scanline;
-    uint32_t ppu_frame;
-  } ppu_state;
+typedef struct PPU_STATE {
+  uint8_t *memory; // 16 kb memory
+  uint8_t *oam_memory; // 256 bytes of Object Attribute Memory
+  ppu_registers *registers;
+  uint16_t ppu_cycle;
+  uint16_t ppu_scanline;
+  uint32_t ppu_frame;
+} ppu_state;
+
+
+// A struct representing a ROM in the iNES format
+// Currently only mapper 0
+typedef struct NES_ROM {
+  uint8_t prg_rom_size; // size of PRG ROM in 16 kb units
+  uint8_t chr_rom_size; // size of CHR ROM in 8 kb units (Value 0 means the board uses CHR RAM)
+  uint8_t mapper; // byte indicating what mapper is used. low: byte 6, bits 4-7. high: byte 7, bits 4-7
+  bool mirroring; // false = horizontal, true = vertical
+  bool battery_backed; // true = battery-backed RAM at $6000-$7FFF
+  bool trainer; // true = 0x10-0x210 has a "trainer" to be skipped (mapped to $7000-$71ff ?)
+  bool four_screen_VRAM; // byte 6, bit 3
+  bool vs_system_cartridge; // byte 7, bit 0
+  /* Number of 8kB RAM banks. For compatibility with the previous */
+  /*   versions of the .NES format, assume 1x8kB RAM page when this */
+  /*   byte is zero. */
+  uint8_t prg_ram_size; // (rarely used extension)
+  bool ntsc; // true for ntsc, false for PAL
+  uint8_t *prg_rom1; // Pointer to first part of PRG_ROM (for memory mapping) $8000-$BFFF
+  uint8_t *prg_rom2; // Pointer to second part of PRG_ROM (for memory mapping) $C000-$FFFF
+  uint8_t *chr_rom; // pointer to CHR ROM (for memory mapping)
+} nes_rom;
+
 
 // A struct representing the state of the console
 // With pointers to cpu (registers), memory(stack+ram), ppu and apu
 // Also contains information about the master clock
 typedef struct NES_STATE {
   uint64_t master_clock;
-  /* registers *registers; */
+    /* registers *registers; */
   cpu_state *cpu;
   uint8_t *memory; // Pointer to start of memory
-  uint8_t *rom; // Pointer to memory containing the ROM
+  /* uint8_t *rom; // Pointer to memory containing the ROM */
+  nes_rom *rom; // pointer to the rom struct
   bool running; // is the emulator still running?
   ppu_state *ppu;
   uint16_t ppu_cycle;

@@ -79,20 +79,30 @@ void power_on(nes_state *state) {
 }
 
 void reset(nes_state *state) {
+  uint8_t pc_low = read_mem(state, 0xFFFC);
+  uint8_t pc_high = read_mem(state, 0xFFFD);
+  uint16_t pc_addr = ((uint16_t) pc_low) | (((uint16_t) pc_high) << 8);
   // Just fake it for now.
-  state->cpu->registers->PC = 0xFFFD;
+  state->cpu->registers->PC = pc_addr;
   set_interrupt_flag(state);
   state->cpu->registers->SP = 0xFD;
   state->cpu->cpu_cycle = 7;
   state->ppu->ppu_cycle = 18;
+  state->cpu->current_opcode_PC = pc_addr;
+  state->cpu->current_opcode = read_mem(state, pc_addr);
 }
 
 
 
 
-void attach_rom(nes_state *state, unsigned char *rommem) {
-  state->rom = rommem;
+/* void attach_rom(nes_state *state, unsigned char *rommem) { */
+/*   state->rom = rommem; */
+/* } */
+
+void attach_rom(nes_state *state, nes_rom *rom) {
+  state->rom = rom;
 }
+
 void print_state(nes_state *state) {
   printf("Cycle:  %lld\n", state->cpu->cpu_cycle);
   print_regs(state);

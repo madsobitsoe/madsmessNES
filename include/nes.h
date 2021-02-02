@@ -14,6 +14,6 @@ void reset(nes_state *state);
 void step(nes_state *state);
 void ppu_step(nes_state *state);
 void print_state(nes_state *state);
-void attach_rom(nes_state *state, unsigned char *rommem);
-
+/* void attach_rom(nes_state *state, unsigned char *rommem); */
+void attach_rom(nes_state *state, nes_rom *rom);
 #endif
