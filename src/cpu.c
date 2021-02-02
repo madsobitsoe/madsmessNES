@@ -494,24 +494,6 @@ void execute_next_action(nes_state *state) {
     }
     break;
 
-    // CMP memory
-    /* case 34: */
-    /* { */
-    /*   uint8_t acc = state->cpu->registers->ACC; */
-    /*   uint8_t value = read_mem(state, ((uint16_t) state->cpu->high_addr_byte) << 8 | (uint16_t) state->cpu->low_addr_byte); */
-    /*   uint8_t res = acc - value; */
-    /*   /\* http://www.6502.org/tutorials/6502opcodes.html#CMP *\/ */
-    /*   /\* Compare sets flags as if a subtraction had been carried out. *\/ */
-    /*   /\* If the value in the accumulator is equal or greater than the compared value, *\/ */
-    /*   /\* the Carry will be set. *\/ */
-    /*   /\* The equal (Z) and negative (N) flags will be set based on equality or lack *\/ */
-    /*   /\* thereof and the sign (i.e. A>=$80) of the accumulator. *\/ */
-    /*   if (acc == value) { set_zero_flag(state); } else { clear_zero_flag(state); } */
-    /*   if (acc >= value) { set_carry_flag(state); } else { clear_carry_flag(state); } */
-    /*   if (res >= 0x80)  { set_negative_flag(state); } else { clear_negative_flag(state); } */
-
-    /* } */
-    /* break; */
     // CMP/CPX/CPY memory
   case 34:
     {
@@ -704,18 +686,14 @@ void execute_next_action(nes_state *state) {
 
         // Fetch effective address high from PC+1, add Y to low byte of effective address
   case 310:
-    /* printf("fetching high addr_byte from %04X\n", (uint16_t) state->cpu->operand+1); */
     state->cpu->high_addr_byte = read_mem(state, (uint16_t) ((uint16_t) state->cpu->registers->PC+1) & 0xff);
-    /* printf("low_addr before: %02X\n", state->cpu->low_addr_byte); */
     state->cpu->low_addr_byte += state->cpu->registers->Y;
-    /* printf("low_addr after: %02X\n", state->cpu->low_addr_byte); */
     break;
 
     // read from effective address, "fix high byte" (write to destination_reg)
   case 311:
     {
     uint16_t addr = ((uint16_t) state->cpu->low_addr_byte) | (((uint16_t) state->cpu->high_addr_byte) << 8);
-    /* printf("read from %04X\n", addr); */
     uint8_t value = read_mem(state, addr);
       *state->cpu->destination_reg = value;
     // Set flags for LDA
@@ -724,16 +702,15 @@ void execute_next_action(nes_state *state) {
     }
     break;
 
-
-     // Fetch low byte of address from operand (ZP-pointer)
+    // Fetch low byte of address from operand (ZP-pointer)
   case 312:
-      state->cpu->low_addr_byte = read_mem(state, state->cpu->operand);
+    state->cpu->low_addr_byte = read_mem(state, state->cpu->operand);
     break;
     // Fetch high byte of address from operand+1, add Y to low_addr
   case 313:
     {
       state->cpu->high_addr_byte = read_mem(state, state->cpu->operand+1);
-    // Add a stall cycle if page boundary crossed
+      // Add a stall cycle if page boundary crossed
       /* This penalty applies to calculated 16bit addresses that are of the type base16 + offset, where the final memory location (base16 + offset) is in a different page than base. base16 can either be the direct or indirect version, but it'll be 16bits either way (and offset will be the contents of either x or y) */
       uint16_t base = ((uint16_t) state->cpu->low_addr_byte) | (((uint16_t) state->cpu->high_addr_byte) << 8);
       uint16_t offset = state->cpu->registers->Y;
@@ -741,15 +718,13 @@ void execute_next_action(nes_state *state) {
         add_action_to_queue(state, 0); // add a stall cycle
         // fix high_addr (one cycle early, but hell)
         if (state->cpu->high_addr_byte < 0xFF) {
-        state->cpu->high_addr_byte += 1;
+          state->cpu->high_addr_byte += 1;
         }
       }
-        uint16_t eff_addr = ((uint16_t) state->cpu->low_addr_byte) | (((uint16_t) state->cpu->high_addr_byte) << 8);
-        eff_addr += offset;
-        state->cpu->high_addr_byte = eff_addr >> 8;
-        state->cpu->low_addr_byte = eff_addr & 0xFF;
-
-        //      state->cpu->low_addr_byte += state->cpu->registers->Y;
+      uint16_t eff_addr = ((uint16_t) state->cpu->low_addr_byte) | (((uint16_t) state->cpu->high_addr_byte) << 8);
+      eff_addr += offset;
+      state->cpu->high_addr_byte = eff_addr >> 8;
+      state->cpu->low_addr_byte = eff_addr & 0xFF;
     }
     break;
 
@@ -874,8 +849,6 @@ void execute_next_action(nes_state *state) {
         eff_addr += offset;
         state->cpu->high_addr_byte = eff_addr >> 8;
         state->cpu->low_addr_byte = eff_addr & 0xFF;
-
-        //      state->cpu->low_addr_byte += state->cpu->registers->Y;
     }
     break;
 
@@ -949,111 +922,110 @@ void execute_next_action(nes_state *state) {
       if (newacc == 0) { set_zero_flag(state); } else { clear_zero_flag(state); }
       state->cpu->registers->ACC = newacc;
     }
-              break;
-              // LSR (reg and zero-page Memory)
-              case 404:
-                if (*state->cpu->source_reg & 0x1) { set_carry_flag(state); }
-                else { clear_carry_flag(state); }
-                *state->cpu->source_reg = *state->cpu->source_reg >> 1;
-                clear_negative_flag(state);
-                if (*state->cpu->source_reg != 0) { clear_zero_flag(state); } else { set_zero_flag(state); }
-                break;
-                // ASL source-reg
-                case 405:
-                  if (*state->cpu->source_reg & 0x80) { set_carry_flag(state); }
-                  else { clear_carry_flag(state); }
-                  *state->cpu->source_reg = *state->cpu->source_reg << 1;
-                  if (*state->cpu->source_reg & 0x80) { set_negative_flag(state); } else {
-                    clear_negative_flag(state);
-                  }
-                  if (*state->cpu->source_reg != 0) { clear_zero_flag(state); } else { set_zero_flag(state); }
-                  break;
-                  // ROR source-reg (zeropage)
-                  case 406:
-                    {
-                      uint8_t newval = *state->cpu->source_reg;
-                      bool carry = is_carry_flag_set(state);
-                      uint8_t lsb = newval & 1;
-                      newval = newval >> 1;
-                      if (carry) { newval |= 0x80; set_negative_flag(state); } else { clear_negative_flag(state); }
-                      if (lsb) { set_carry_flag(state); } else { clear_carry_flag(state); }
-                      if (newval == 0) { set_zero_flag(state); } else { clear_zero_flag(state); }
-                      *state->cpu->source_reg = newval;
-                    }
-                    break;
-                    // ROL source_reg
-                    case 407:
-                      {
-                        uint8_t newacc = *state->cpu->source_reg;
-                        bool carry = is_carry_flag_set(state);
-                        uint8_t msb = newacc & 0x80;
-                        newacc = newacc << 1;
-                        if (carry) { newacc |= 0x1; }
-                        if (newacc & 0x80) { set_negative_flag(state); } else { clear_negative_flag(state); }
-                        if (msb) { set_carry_flag(state); } else { clear_carry_flag(state); }
-                        if (newacc == 0) { set_zero_flag(state); } else { clear_zero_flag(state); }
-                        *state->cpu->source_reg = newacc;
-                      }
-                      break;
-                      // LSR (memory)
-                      case 408:
-                        {
-                          uint16_t addr = ((uint16_t) state->cpu->high_addr_byte) << 8 | (uint16_t)state->cpu->low_addr_byte;
-                          uint8_t value = read_mem(state, addr);
-                          if (value & 0x1) { set_carry_flag(state); }
-                          else { clear_carry_flag(state); }
-                          value = value >> 1;
-                          clear_negative_flag(state);
-                          if (value != 0) { clear_zero_flag(state); } else { set_zero_flag(state); }
-                          state->memory[addr] = value;
-                        }
-                        break;
-                        // ASL memory
-                        case 409:
-                          {
-                            uint16_t addr = ((uint16_t) state->cpu->high_addr_byte) << 8 | (uint16_t)state->cpu->low_addr_byte;
-                            uint8_t value = read_mem(state, addr);
-                            if (value & 0x80) { set_carry_flag(state); }
-                            else { clear_carry_flag(state); }
-                            value = value << 1;
-                            if (value & 0x80) { set_negative_flag(state); } else {
-                              clear_negative_flag(state);
-                            }
-                            if (value != 0) { clear_zero_flag(state); } else { set_zero_flag(state); }
-                            state->memory[addr] = value;
-                          }
-                          break;
-                          // ROR Memory
-                          case 410:
-                            {
-                              uint16_t addr = ((uint16_t) state->cpu->high_addr_byte) << 8 | (uint16_t)state->cpu->low_addr_byte;
-                              uint8_t value = read_mem(state, addr);
-                              bool carry = is_carry_flag_set(state);
-                              uint8_t lsb = value & 1;
-                              value = value >> 1;
-                              if (carry) { value |= 0x80; set_negative_flag(state); } else { clear_negative_flag(state); }
-                              if (lsb) { set_carry_flag(state); } else { clear_carry_flag(state); }
-                              if (value == 0) { set_zero_flag(state); } else { clear_zero_flag(state); }
-                              state->memory[addr] = value;
-                            }
-                            break;
-                            // ROL Memory
-                            case 411:
-                              {
-                                uint16_t addr = ((uint16_t) state->cpu->high_addr_byte) << 8 | (uint16_t)state->cpu->low_addr_byte;
-                                uint8_t value = read_mem(state, addr);
-                                bool carry = is_carry_flag_set(state);
-                                uint8_t msb = value & 0x80;
-                                value = value << 1;
-                                if (carry) { value |= 0x1; }
-                                if (value & 0x80 ) { set_negative_flag(state); } else { clear_negative_flag(state); }
-                                if (msb) { set_carry_flag(state); } else { clear_carry_flag(state); }
-                                if (value == 0) { set_zero_flag(state); } else { clear_zero_flag(state); }
-                                write_mem(state, addr, value);/* ->memory[addr] = value; */
-                              }
-                              break;
-
-                                          }
+    break;
+    // LSR (reg and zero-page Memory)
+  case 404:
+    if (*state->cpu->source_reg & 0x1) { set_carry_flag(state); }
+    else { clear_carry_flag(state); }
+    *state->cpu->source_reg = *state->cpu->source_reg >> 1;
+    clear_negative_flag(state);
+    if (*state->cpu->source_reg != 0) { clear_zero_flag(state); } else { set_zero_flag(state); }
+    break;
+    // ASL source-reg
+  case 405:
+    if (*state->cpu->source_reg & 0x80) { set_carry_flag(state); }
+    else { clear_carry_flag(state); }
+    *state->cpu->source_reg = *state->cpu->source_reg << 1;
+    if (*state->cpu->source_reg & 0x80) { set_negative_flag(state); } else {
+      clear_negative_flag(state);
+    }
+    if (*state->cpu->source_reg != 0) { clear_zero_flag(state); } else { set_zero_flag(state); }
+    break;
+    // ROR source-reg (zeropage)
+  case 406:
+    {
+      uint8_t newval = *state->cpu->source_reg;
+      bool carry = is_carry_flag_set(state);
+      uint8_t lsb = newval & 1;
+      newval = newval >> 1;
+      if (carry) { newval |= 0x80; set_negative_flag(state); } else { clear_negative_flag(state); }
+      if (lsb) { set_carry_flag(state); } else { clear_carry_flag(state); }
+      if (newval == 0) { set_zero_flag(state); } else { clear_zero_flag(state); }
+      *state->cpu->source_reg = newval;
+    }
+    break;
+    // ROL source_reg
+  case 407:
+    {
+      uint8_t newacc = *state->cpu->source_reg;
+      bool carry = is_carry_flag_set(state);
+      uint8_t msb = newacc & 0x80;
+      newacc = newacc << 1;
+      if (carry) { newacc |= 0x1; }
+      if (newacc & 0x80) { set_negative_flag(state); } else { clear_negative_flag(state); }
+      if (msb) { set_carry_flag(state); } else { clear_carry_flag(state); }
+      if (newacc == 0) { set_zero_flag(state); } else { clear_zero_flag(state); }
+      *state->cpu->source_reg = newacc;
+    }
+    break;
+    // LSR (memory)
+  case 408:
+    {
+      uint16_t addr = ((uint16_t) state->cpu->high_addr_byte) << 8 | (uint16_t)state->cpu->low_addr_byte;
+      uint8_t value = read_mem(state, addr);
+      if (value & 0x1) { set_carry_flag(state); }
+      else { clear_carry_flag(state); }
+      value = value >> 1;
+      clear_negative_flag(state);
+      if (value != 0) { clear_zero_flag(state); } else { set_zero_flag(state); }
+      state->memory[addr] = value;
+    }
+    break;
+    // ASL memory
+  case 409:
+    {
+      uint16_t addr = ((uint16_t) state->cpu->high_addr_byte) << 8 | (uint16_t)state->cpu->low_addr_byte;
+      uint8_t value = read_mem(state, addr);
+      if (value & 0x80) { set_carry_flag(state); }
+      else { clear_carry_flag(state); }
+      value = value << 1;
+      if (value & 0x80) { set_negative_flag(state); } else {
+        clear_negative_flag(state);
+      }
+      if (value != 0) { clear_zero_flag(state); } else { set_zero_flag(state); }
+      state->memory[addr] = value;
+    }
+    break;
+    // ROR Memory
+  case 410:
+    {
+      uint16_t addr = ((uint16_t) state->cpu->high_addr_byte) << 8 | (uint16_t)state->cpu->low_addr_byte;
+      uint8_t value = read_mem(state, addr);
+      bool carry = is_carry_flag_set(state);
+      uint8_t lsb = value & 1;
+      value = value >> 1;
+      if (carry) { value |= 0x80; set_negative_flag(state); } else { clear_negative_flag(state); }
+      if (lsb) { set_carry_flag(state); } else { clear_carry_flag(state); }
+      if (value == 0) { set_zero_flag(state); } else { clear_zero_flag(state); }
+      state->memory[addr] = value;
+    }
+    break;
+    // ROL Memory
+  case 411:
+    {
+      uint16_t addr = ((uint16_t) state->cpu->high_addr_byte) << 8 | (uint16_t)state->cpu->low_addr_byte;
+      uint8_t value = read_mem(state, addr);
+      bool carry = is_carry_flag_set(state);
+      uint8_t msb = value & 0x80;
+      value = value << 1;
+      if (carry) { value |= 0x1; }
+      if (value & 0x80 ) { set_negative_flag(state); } else { clear_negative_flag(state); }
+      if (msb) { set_carry_flag(state); } else { clear_carry_flag(state); }
+      if (value == 0) { set_zero_flag(state); } else { clear_zero_flag(state); }
+      write_mem(state, addr, value);
+    }
+    break;
+  }
 
   state->cpu->next_action++;
   if (state->cpu->next_action > 9) { state->cpu->next_action = 0; }
@@ -1070,15 +1042,8 @@ void add_instruction_to_queue(nes_state *state) {
   switch (read_mem(state, state->cpu->registers->PC)) {
     // ORA indexed indirect
   case 0x01:
-    /*   2      PC       R  fetch pointer address, increment PC */
-    /*   3    pointer    R  read from the address, add X to it */
-    /*   4   pointer+X   R  fetch effective address low */
-    /*   5  pointer+X+1  R  fetch effective address high */
-    /*   6    address    R  read from effective address */
-
     state->cpu->high_addr_byte = 0x0;
     state->cpu->low_addr_byte = 0x0;
-    //    state->cpu->source_reg = &state->cpu->registers->ACC;
     state->cpu->destination_reg = &state->cpu->registers->ACC;
     /* 2      PC       R  fetch pointer address, increment PC */
     add_action_to_queue(state, 11); // increment PC, nowhere to store pointer
@@ -1132,7 +1097,6 @@ void add_instruction_to_queue(nes_state *state) {
     break;
     // ORA Absolute
   case 0x0D:
-    /* state->cpu->destination_reg = &state->cpu->registers->Y; */
     add_action_to_queue(state, 300);
     add_action_to_queue(state, 301);
     // Read from effective address, copy to register
@@ -1140,17 +1104,16 @@ void add_instruction_to_queue(nes_state *state) {
     break;
     // ASL Absolute
   case 0x0E:
- /* 2    PC     R  fetch low byte of address, increment PC */
+    /* 2    PC     R  fetch low byte of address, increment PC */
     add_action_to_queue(state, 300);
- /*        3    PC     R  fetch high byte of address, increment PC */
+    /*        3    PC     R  fetch high byte of address, increment PC */
     add_action_to_queue(state, 301);
- /*        4  address  R  read from effective address */
+    /*        4  address  R  read from effective address */
     add_action_to_queue(state, 0); // Stall
- /*        5  address  W  write the value back to effective address, */
-    add_action_to_queue(state, 0); // Stall
+    /*        5  address  W  write the value back to effective address, */
     /*                       and do the operation on it */
-
- /*        6  address  W  write the new value to effective address */
+    add_action_to_queue(state, 0); // Stall
+    /*        6  address  W  write the new value to effective address */
     add_action_to_queue(state, 409);
     break;
     // BPL - Branch Result Plus
@@ -1165,30 +1128,19 @@ void add_instruction_to_queue(nes_state *state) {
     // ORA indirect-indexed, Y
   case 0x11:
     state->cpu->destination_reg = &state->cpu->registers->ACC;
-  /* #    address   R/W description */
-  /*      --- ----------- --- ------------------------------------------ */
-  /*       1      PC       R  fetch opcode, increment PC */
-  /*       2      PC       R  fetch pointer address, increment PC */
+    /*       2      PC       R  fetch pointer address, increment PC */
     add_action_to_queue(state, 307);
     /* add_action_to_queue(state, 11); // increment PC, nowhere to store pointer */
-  /*       3    pointer    R  fetch effective address low */
+    /*       3    pointer    R  fetch effective address low */
     add_action_to_queue(state, 312);
-  /*       4   pointer+1   R  fetch effective address high, */
-  /*                          add Y to low byte of effective address */
+    /*       4   pointer+1   R  fetch effective address high, */
+    /*                          add Y to low byte of effective address */
     add_action_to_queue(state, 313);
-  /*       5   address+Y*  R  read from effective address, */
-  /*                          fix high byte of effective address */
+    /*       5   address+Y*  R  read from effective address, */
+    /*                          fix high byte of effective address */
     add_action_to_queue(state, 314);
-  /*       6+  address+Y   R  read from effective address */
+    /*       6+  address+Y   R  read from effective address */
     // ^Will be added in 313 if necessary
-  /*      Notes: The effective address is always fetched from zero page, */
-  /*             i.e. the zero page boundary crossing is not handled. */
-
-  /*             * The high byte of the effective address may be invalid */
-  /*               at this time, i.e. it may be smaller by $100. */
-
-  /*             + This cycle will be executed only if the effective address */
-  /*               was invalid during cycle #5, i.e. page boundary was crossed. */
     break;
     // CLC
   case 0x18:
