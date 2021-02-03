@@ -93,6 +93,35 @@ int load_rom2(char *filename, uint8_t **rombuf, nes_rom *rom) {
 }
 
 
+void print_byte(uint8_t byte) {
+  for (int i = 7; i >= 0; i--) {
+    if (byte & (1 << i)) {
+      printf("\x1b[1;31m1 \x1b[0m");
+    }
+    else {
+      printf("0 ");
+    }
+  }
+}
+
+void pattern_table_dump(nes_rom *rom) {
+  // 16 bytes
+  // first 8 == low bytes
+  // second 8 == high bytes
+  // Read both bytes, OR them together
+  // That becomes the 8x8 pixels
+  // Draw the "lit ones" in red, others as 0's
+  int index = 0;
+  while (index < 0x2000) {
+    /* for (int i = 0; i < 64; i++) { */
+    uint8_t tile_byte = rom->chr_rom[index] | rom->chr_rom[index+8];
+    print_byte(tile_byte);
+    printf("\n");
+    index++;
+    if (index % 8 == 0) { index += 8; }
+  }
+}
+
 void print_rom_info(nes_rom *rom) {
   printf("prg_rom_size: %u\n", rom->prg_rom_size);
   printf("chr_rom_size: %u\n", rom->chr_rom_size);
@@ -113,6 +142,10 @@ void print_rom_info(nes_rom *rom) {
     if (i % 16 == 0) { printf("\n"); }
     printf("%02X ", rom->chr_rom[i]);
   }
+
+  printf("here we go!\n");
+  pattern_table_dump(rom);
+
   /* for (int i = 0; i < 0xfff; i++) { */
   /*   printf("i: %d, test: %02X, %02X\n", i, rom->prg_rom1[i], rom->prg_rom2[i]); */
   /* } */
@@ -121,9 +154,9 @@ void print_rom_info(nes_rom *rom) {
 }
 
 
-void free_rom(nes_rom *rom) {
-  free(rom->prg_rom1);
-  free(rom->prg_rom2);
-  free(rom->chr_rom);
-  free(rom);
-}
+    void free_rom(nes_rom *rom) {
+      free(rom->prg_rom1);
+      free(rom->prg_rom2);
+      free(rom->chr_rom);
+      free(rom);
+    }

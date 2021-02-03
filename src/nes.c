@@ -47,6 +47,9 @@ nes_state* init_state() {
   state->ppu->ppu_cycle = 0;
   state->ppu->ppu_scanline = 0;
   state->ppu->ppu_frame = 0;
+  state->ppu->address_latch = 0;
+  state->ppu->high_pointer = true;
+  state->ppu->internal_addr_reg = 0;
   return state;
 }
 

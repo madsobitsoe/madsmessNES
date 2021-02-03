@@ -21,35 +21,33 @@ uint8_t read_mem(nes_state *state, uint16_t memloc) {
   }
   /*   2000-2007 is how the CPU writes to the PPU, 2008-3FFF are mirrors of that address range. */
   if (memloc >= 0x2000 && memloc <= 0x3FFF) {
+    printf("PPU Reg read! reg: %04X\n", memloc);
     uint16_t translated = memloc & 0x2007;
     switch (translated) {
+      // write-only, return the latch
     case 0x2000:
-      return state->ppu->registers->ppu_ctrl;
-      break;
     case 0x2001:
-      return state->ppu->registers->ppu_mask;
+    case 0x2003:
+    case 0x2005:
+    case 0x2006:
+      return state->ppu->address_latch;
       break;
     case 0x2002:
-      return state->ppu->registers->ppu_status;
-      break;
-    case 0x2003:
-      return state->ppu->registers->oam_addr;
+      return read_status_reg(state);
       break;
     case 0x2004:
-      return state->ppu->registers->oam_data;
-      break;
-    case 0x2005:
-      return state->ppu->registers->ppu_scroll;
-      break;
-    case 0x2006:
-      return state->ppu->registers->ppu_addr;
+      return read_oam_data_reg(state);
       break;
     case 0x2007:
-      return state->ppu->registers->ppu_data;
+      // When reading, the "address_latch"/internal buffer should be returned
+      // Whether the internal buffer is updated, depends on where we read from
+      // some parts of PPU memory, e.g. the palettes, are "directly on the bus",
+      // while others require a "dummy read" to fill the buffer first
+      // Reading 0x2007 also increments 0x2006 based on bit 2 of 0x2000
+      // See https://wiki.nesdev.com/w/index.php/PPU_registers#Data_.28.242007.29_.3C.3E_read.2Fwrite
+      return read_data_reg(state);
       break;
     }
-    // TODO - replace with reading PPU IO
-    return 0;
   }
   /*   4000-401F is for IO ports and sound */
   if (memloc >= 0x4000 && memloc <= 0x401F) {
@@ -98,7 +96,9 @@ void write_mem(nes_state *state, uint16_t memloc, uint8_t value) {
     return;
   }
   /*   2000-2007 is how the CPU writes to the PPU, 2008-3FFF are mirrors of that address range. */
+  // Writing to any PPU IO port will fill the "latch" with that value
   if (memloc >= 0x2000 && memloc <= 0x3FFF) {
+    printf("PPU Reg write! reg: %04X\n", memloc);
     // TODO - replace with writing to PPU IO regs
     if (memloc >= 0x2000 && memloc <= 0x3FFF) {
       uint16_t translated = memloc & 0x2007;
@@ -110,7 +110,7 @@ void write_mem(nes_state *state, uint16_t memloc, uint8_t value) {
         state->ppu->registers->ppu_mask = value;
         break;
       case 0x2002:
-        state->ppu->registers->ppu_status = value;
+        // Read-only, just fill the latch
         break;
       case 0x2003:
         state->ppu->registers->oam_addr = value;
@@ -122,13 +122,24 @@ void write_mem(nes_state *state, uint16_t memloc, uint8_t value) {
         state->ppu->registers->ppu_scroll = value;
         break;
       case 0x2006:
-        state->ppu->registers->ppu_addr = value;
+        if (state->ppu->high_pointer) {
+          state->ppu->internal_addr_reg &= 0xff;
+          state->ppu->internal_addr_reg |= ((uint16_t) value << 8);
+        }
+        else {
+          state->ppu->internal_addr_reg &= 0xff00;
+          state->ppu->internal_addr_reg |= (uint16_t) value;
+        }
+        state->ppu->high_pointer = !state->ppu->high_pointer;
         break;
+
       case 0x2007:
         state->ppu->registers->ppu_data = value;
         break;
       }
-      // TODO - replace with reading PPU IO
+      // Writing to any PPU IO port will fill the latch/bus
+      state->ppu->address_latch = value;
+
     }
     return;
   }
@@ -138,6 +149,7 @@ void write_mem(nes_state *state, uint16_t memloc, uint8_t value) {
     switch(memloc) {
     case 0x4014:
       state->ppu->registers->oam_dma = value;
+      state->ppu->address_latch = value;
       break;
     }
     return;
@@ -190,6 +202,9 @@ uint8_t read_mem_ppu(nes_state *state, uint16_t memloc) {
   state->running = false;
   return 0;
 }
+// The CPU can only write to PPU VRAM through the memory-mapped IO registers in the CPU memory map ($2000-$2007 + the dma port $4014
+// This function does not care about "who" accesses, as it is used by both the ppu and the cpu
+// Writes from cpu, will go through the write_mem function and that should be enough access control
 void write_mem_ppu(nes_state *state, uint16_t memloc, uint8_t value) {
   return;
 }
