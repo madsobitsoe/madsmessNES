@@ -2,13 +2,15 @@
 #include "nes.h"
 #include "memory.h"
 #include "rom_loader.h"
-
+#include "ppu.h"
 
 void step(nes_state *state) {
   // Update the master clock by one
   state->master_clock += 1;
-  // Only for logging right now
-  ppu_step(state);
+  // ppu has 3 cycles for every cpu cycle
+  for (int i = 0; i < 3; i++) {
+    ppu_step(state);
+  }
   // Log if needed
   // Step one cycle in CPU
   if (state->cpu->next_action == state->cpu->end_of_queue) {
@@ -96,16 +98,12 @@ void reset(nes_state *state) {
   state->cpu->registers->SP = 0xFD;
   state->cpu->cpu_cycle = 7;
   state->ppu->ppu_cycle = 18;
+  state->ppu->ppu_scanline = 0;
   state->cpu->current_opcode_PC = pc_addr;
   state->cpu->current_opcode = read_mem(state, pc_addr);
 }
 
 
-
-
-/* void attach_rom(nes_state *state, unsigned char *rommem) { */
-/*   state->rom = rommem; */
-/* } */
 
 void attach_rom(nes_state *state, nes_rom *rom) {
   state->rom = rom;
@@ -117,15 +115,4 @@ void print_state(nes_state *state) {
   print_cpu_status(state);
   print_stack(state);
   printf("Addr_dest: %p\tAddr_source: %p\tAddr_X: %p\n", (state->cpu->destination_reg), (state->cpu->source_reg), &(state->cpu->registers->X));
-}
-
-
-void ppu_step(nes_state *state) {
-  for (int i = 0; i < 3; i++) {
-    state->ppu->ppu_cycle++;
-    if (state->ppu->ppu_cycle > 340) {
-      state->ppu->ppu_cycle = 0;
-      state->ppu->ppu_scanline++;
-    }
-  }
 }

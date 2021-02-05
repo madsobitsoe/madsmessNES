@@ -61,3 +61,37 @@ uint8_t read_data_reg(nes_state *state) {
   incr_addr_reg(state);
   return return_val;
 }
+
+// Do one step of the ppu
+void ppu_step(nes_state *state) {
+  // Scanlines 0-239 are all "similar"
+  // They differ a tiny amount, but we'll handle that later
+  // VISIBLE FRAME SCANLINE
+  if (state->ppu->ppu_scanline <= 239) {
+
+
+  }
+  else {
+    switch (state->ppu->ppu_scanline) {
+      // In cycle 1 (0-indexed), VBLank flag is set
+    case 241:
+      // Set Vblank flag
+      break;
+      // Last scanline! Lots of stuff happens
+    case 261:
+      break ;
+      // Nothing happens
+    default: break;
+    }
+  }
+  // Update cycle and scanline count
+  state->ppu->ppu_cycle++;
+  if (state->ppu->ppu_cycle > 340) {
+    state->ppu->ppu_cycle = 0;
+    state->ppu->ppu_scanline++;
+  }
+  if (state->ppu->ppu_scanline > 261) {
+    state->ppu->ppu_scanline = 0;
+
+  }
+}

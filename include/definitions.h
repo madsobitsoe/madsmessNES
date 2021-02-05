@@ -85,15 +85,14 @@ typedef struct NES_ROM {
 // Also contains information about the master clock
 typedef struct NES_STATE {
   uint64_t master_clock;
-    /* registers *registers; */
   cpu_state *cpu;
   uint8_t *memory; // Pointer to start of memory
   /* uint8_t *rom; // Pointer to memory containing the ROM */
   nes_rom *rom; // pointer to the rom struct
   bool running; // is the emulator still running?
   ppu_state *ppu;
-  uint16_t ppu_cycle;
-  uint16_t ppu_scanline;
+  /* uint16_t ppu_cycle; */
+  /* uint16_t ppu_scanline; */
   bool fatal_error;
 } nes_state;
 
