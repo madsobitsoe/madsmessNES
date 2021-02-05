@@ -117,14 +117,17 @@ int main (int argc, char **argv)
 
   int x = 0;
   int y = 0;
-  while (tile < 0x300) {
+  // With mapper 0, CHR_ROM can have a max size of 8kb
+  // 8kb (0x2000) bytes of tiles
+  // Each tile takes up 16 bytes
+  // A max of 0x200 tiles
+  while (tile < 0x200) {
     grab_next_tile(my_rom, tilebuf, tile*16);
     render_tile(tilebuf, x, y, renderer);
     x += 8;
     if (x >= 255) {
       x = 0;
       y += 8;
-      printf("HIT!\n");
     }
     tile++;
   }
@@ -150,14 +153,11 @@ int main (int argc, char **argv)
     }
   }
 
-  /* /\* Pauses all SDL subsystems for a variable amount of milliseconds *\/ */
-  /* SDL_Delay(DELAY); */
-
   /* Frees memory */
   SDL_DestroyWindow(window);
 
   /* Shuts down all SDL subsystems */
   SDL_Quit();
-
+  free_rom(my_rom);
   return 0;
-}
+           }

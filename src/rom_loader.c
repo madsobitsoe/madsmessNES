@@ -76,18 +76,17 @@ int load_rom2(char *filename, uint8_t **rombuf, nes_rom *rom) {
   if (rom->prg_rom_size == 1) {
     memcpy(rom->prg_rom1, *rombuf+prg_start, 0x4000);
     memcpy(rom->prg_rom2, *rombuf+prg_start, 0x4000);
-    /* rom->prg_rom1 = *(rombuf+prg_start); */
-    /* rom->prg_rom2 = *(rombuf+prg_start); */
   }
   if (rom->prg_rom_size == 2) {
     memcpy(rom->prg_rom1, *rombuf+prg_start, 0x4000);
     memcpy(rom->prg_rom2, *rombuf+prg_start+0x4000, 0x4000);
-    /* rom->prg_rom1 = *(rombuf+prg_start); */
-    /* rom->prg_rom2 = *(rombuf+prg_start+16384); */
   }
-  rom->chr_rom = malloc(0x2000);
-  memcpy(rom->chr_rom, (*rombuf+prg_start) + (rom->prg_rom_size * 0x4000), 0x2000);
 
+  // For now, we ONLY do mapper 0, which does not bankswitch
+  // And has a maximum of 8 kb CHR rom available
+  rom->chr_rom = malloc(0x2000);
+  uint32_t chr_rom_offset = prg_start + (rom->prg_rom_size * 0x4000);
+  memcpy(rom->chr_rom, *rombuf+chr_rom_offset, 0x2000);
 
   return 0;
 }
