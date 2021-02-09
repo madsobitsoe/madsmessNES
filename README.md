@@ -1,6 +1,8 @@
 # Stupid NES emulator
 
-A bad NES emulator, written for learning purposes
+A bad NES emulator, written for learning purposes.
+
+Only tested on OSX - linux compatibility to come.
 
 
 ## NES_STATE
