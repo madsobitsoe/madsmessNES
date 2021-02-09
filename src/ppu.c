@@ -39,7 +39,7 @@ uint8_t read_data_reg(nes_state *state) {
   uint16_t addr = state->ppu->internal_addr_reg;
   uint8_t return_val;
   // "normal" access to vram
-  if (0x0 <= addr && addr < 0x3f00) {
+  if (addr < 0x3f00) {
     // Return the "old" value
     return_val = state->ppu->address_latch;
     // Update the internal buffer

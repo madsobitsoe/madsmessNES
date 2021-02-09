@@ -110,7 +110,7 @@ void attach_rom(nes_state *state, nes_rom *rom) {
 }
 
 void print_state(nes_state *state) {
-  printf("Cycle:  %lld\n", state->cpu->cpu_cycle);
+  printf("Cycle:  %ld\n", state->cpu->cpu_cycle);
   print_regs(state);
   print_cpu_status(state);
   print_stack(state);

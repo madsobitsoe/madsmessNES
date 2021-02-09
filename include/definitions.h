@@ -1,6 +1,7 @@
 #ifndef DEFINITIONS_H
 #define DEFINITIONS_H
 #include <stdbool.h>
+#include <stdint.h>
 
 // Define a structure for the CPU registers
 typedef struct REGISTERS {

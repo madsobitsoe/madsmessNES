@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <sys/stat.h>
 #include <string.h>
+#include <stdint.h>
 #include "definitions.h"
 
 
@@ -49,7 +50,7 @@ int load_rom2(char *filename, uint8_t **rombuf, nes_rom *rom) {
   int fstatus = stat(filename, &romfilestat);
   if (fstatus != 0) { perror("stat call failed.\n"); return EXIT_FAILURE; }
 
-  printf("Filename: %s\nFilesize: %lld\n", filename, romfilestat.st_size);
+  printf("Filename: %s\nFilesize: %ld\n", filename, romfilestat.st_size);
   if ((infile = fopen(filename, "r")) == NULL) {
     perror("fopen() failed");
     return EXIT_FAILURE;
@@ -136,14 +137,14 @@ void print_rom_info(nes_rom *rom) {
   printf("Mapper: %u\n", rom->mapper);
 
 
-  printf("CHR_ROM dump:\n");
-  for (int i = 0; i < 0x2000; i++) {
-    if (i % 16 == 0) { printf("\n"); }
-    printf("%02X ", rom->chr_rom[i]);
-  }
+  /* printf("CHR_ROM dump:\n"); */
+  /* for (int i = 0; i < 0x2000; i++) { */
+  /*   if (i % 16 == 0) { printf("\n"); } */
+  /*   printf("%02X ", rom->chr_rom[i]); */
+  /* } */
 
-  printf("here we go!\n");
-  pattern_table_dump(rom);
+  /* printf("here we go!\n"); */
+  /* pattern_table_dump(rom); */
 
   /* for (int i = 0; i < 0xfff; i++) { */
   /*   printf("i: %d, test: %02X, %02X\n", i, rom->prg_rom1[i], rom->prg_rom2[i]); */
@@ -153,9 +154,9 @@ void print_rom_info(nes_rom *rom) {
 }
 
 
-    void free_rom(nes_rom *rom) {
-      free(rom->prg_rom1);
-      free(rom->prg_rom2);
-      free(rom->chr_rom);
-      free(rom);
-    }
+void free_rom(nes_rom *rom) {
+  free(rom->prg_rom1);
+  free(rom->prg_rom2);
+  free(rom->chr_rom);
+  free(rom);
+}

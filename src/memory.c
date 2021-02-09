@@ -1,12 +1,14 @@
+#include <stdio.h>
 #include "memory.h"
 
-
 uint8_t read_mem(nes_state *state, uint16_t memloc) {
+
   /*   8000-FFFF is the main area the cartridge ROM is mapped to in memory. Sometimes it can be bank switched, usually in 32k, 16k, or 8k sized banks. */
-  if (memloc >= 0x8000 && memloc <= 0xFFFF) {
+  if (memloc >= 0x8000) {
     /* return state->rom[memloc - 0xC000]; */
     uint16_t translated = memloc - 0x8000;
-    if (translated <= 0x4000) {
+    printf("Memloc: %04X, translated: %04X\n", memloc, translated);
+    if (translated < 0x4000) {
       return state->rom->prg_rom1[translated];
     }
     else {
@@ -84,7 +86,7 @@ void write_mem(nes_state *state, uint16_t memloc, uint8_t value) {
   /*   8000-FFFF is the main area the cartridge ROM is mapped to in memory. Sometimes it can be bank switched, usually in 32k, 16k, or 8k sized banks. */
 
   // Writing to rom is not possible, signal fatal error
-  if (memloc >= 0x8000 && memloc <= 0xFFFF) {
+  if (memloc >= 0x8000) {
     state->fatal_error = true;
     state->running = false;
     return;

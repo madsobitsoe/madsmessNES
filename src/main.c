@@ -25,7 +25,7 @@ void run_for_n_cycles(nes_state *state, uint32_t cycles) {
     count++;
   }
   if (state->fatal_error) {
-    printf("Fatal error at cycle: %llu\n", state->cpu->cpu_cycle);
+    printf("Fatal error at cycle: %lu\n", state->cpu->cpu_cycle);
     print_state(state);
     print_log(state);
   }
@@ -183,7 +183,7 @@ int load_rom(char *filename, unsigned char **rombuf) {
   int fstatus = stat(filename, &romfilestat);
   if (fstatus != 0) { perror("stat call failed.\n"); return EXIT_FAILURE; }
 
-  printf("Filename: %s\nFilesize: %lld\n", filename, romfilestat.st_size);
+  printf("Filename: %s\nFilesize: %ld\n", filename, romfilestat.st_size);
   if ((infile = fopen(filename, "r")) == NULL) {
     perror("fopen() failed");
     return EXIT_FAILURE;
@@ -193,7 +193,6 @@ int load_rom(char *filename, unsigned char **rombuf) {
   fread(*rombuf, 1, romfilestat.st_size, infile);
   fclose(infile);
   return 0;
-
 }
 
 
@@ -233,6 +232,7 @@ int main (int argc, char **argv) {
                  optopt);
         return 1;
       }
+      break;
     default:
       fprintf(stderr, "Usage: %s [-cl] [file...]\n", argv[0]);
       exit(EXIT_FAILURE);
@@ -253,10 +253,6 @@ int main (int argc, char **argv) {
 
 
   unsigned char *rombuf;
-  /* int load_rom_status = load_rom(argv[optind], &rombuf); */
-  /* if (load_rom_status != 0) { */
-  /*   return load_rom_status; */
-  /* }; */
   nes_rom *my_rom = malloc(sizeof(nes_rom));
   int romret = load_rom2(argv[optind], &rombuf, my_rom);
   printf("rom loaded: %d\n", romret);
@@ -276,7 +272,6 @@ int main (int argc, char **argv) {
   printf("Done!\n");
 
 
-
   // The nestest.nes file requires PC to be set to 0xc000 after powerup.
   if (overwrite_pc) {
     set_pc(state, new_pc);
@@ -291,7 +286,7 @@ int main (int argc, char **argv) {
   }
 
   logger_stop_logger();
-  /* free_rom(my_rom); */
+
   destroy_state(state);
   free(rombuf);
   return 0;

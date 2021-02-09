@@ -2,6 +2,7 @@
 #define MEMORY_H
 
 #include <stdlib.h>
+#include <stdint.h>
 #include "definitions.h"
 #include "cpu.h"
 #include "ppu.h"
