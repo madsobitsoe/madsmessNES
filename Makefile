@@ -34,7 +34,7 @@ emu: src/cpu.c src/rom_loader.c src/nes.c src/ppu.c src/logger.c src/memory.c sr
 
 # terrible, but good enough for now
 tileviewer: src/tile_viewer.c src/rom_loader.c include/rom_loader.h
-	gcc -Wall -Wextra -o tile_viewer src/tile_viewer.c src/rom_loader.c `sdl2-config --cflags` -g `sdl2-config --libs` -lSDL2_mixer -lSDL2_image -lSDL2_ttf -lm -Iinclude
+	gcc -Wall -Wextra -o tile_viewer src/tile_viewer.c src/rom_loader.c `sdl2-config --cflags` -g `sdl2-config --libs`  -lm -Iinclude
 
 
 .PHONY: clean
