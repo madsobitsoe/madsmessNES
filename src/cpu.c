@@ -668,21 +668,30 @@ void execute_next_action(nes_state *state) {
     }
         break;
 
-        // Fetch effective address high from PC+1, add Y to low byte of effective address
-  case FETCH_EFF_ADDR_HIGH_ADD_Y:
-    state->cpu->high_addr_byte = read_mem(state, (uint16_t) ((uint16_t) state->cpu->registers->PC+1) & 0xff);
-    state->cpu->low_addr_byte += state->cpu->registers->Y;
+        // Fetch effective address high from PC+1, add Y to low byte of effective address, inc pc
+  case FETCH_EFF_ADDR_HIGH_ADD_Y_INC_PC:
+    state->cpu->high_addr_byte = read_mem(state, (uint16_t) ((uint16_t) state->cpu->registers->PC));
+    // Fix high address, one cycle early
+    // Add a stall cycle if page boundary is crossed
+    if (((uint16_t)state->cpu->low_addr_byte + (uint16_t)*state->cpu->source_reg) > 0xFF) {
+	state->cpu->high_addr_byte++;
+	add_action_to_queue(state, STALL_CYCLE);
+    }
+    state->cpu->low_addr_byte += *state->cpu->source_reg;
+    state->cpu->registers->PC++;
     break;
 
     // read from effective address, "fix high byte" (write to destination_reg)
   case READ_FROM_EFF_ADDR_FIX_HIGH_BYTE:
     {
-    uint16_t addr = ((uint16_t) state->cpu->low_addr_byte) | (((uint16_t) state->cpu->high_addr_byte) << 8);
-    uint8_t value = read_mem(state, addr);
-      *state->cpu->destination_reg = value;
-    // Set flags for LDA
-      if (value == 0) { set_zero_flag(state); } else { clear_zero_flag(state); }
-      if (value & 0x80) { set_negative_flag(state); } else { clear_negative_flag(state); }
+
+	uint16_t eff_addr = ((uint16_t) state->cpu->low_addr_byte) | (((uint16_t) state->cpu->high_addr_byte) << 8);
+	
+	uint8_t value = read_mem(state, eff_addr);
+	*state->cpu->destination_reg = value;
+	// Set flags for LDA
+	if (value == 0) { set_zero_flag(state); } else { clear_zero_flag(state); }
+	if (value & 0x80) { set_negative_flag(state); } else { clear_negative_flag(state); }
     }
     break;
 
@@ -1672,7 +1681,7 @@ add_action_to_queue(state, PULL_PCL_FROM_STACK_INC_SP);
     add_action_to_queue(state, FETCH_LOW_BYTE_ADDR_ZP);
     /*      4   pointer+1   R  fetch effective address high, */
    /*                         add Y to low byte of effective address */
-    // HERE IDIOT
+
     add_action_to_queue(state, FETCH_HIGH_BYTE_ADDR_ADD_Y);
     add_action_to_queue(state, STALL_CYCLE);
     /*      5   address+Y*  R  read from effective address, */
@@ -1870,13 +1879,16 @@ add_action_to_queue(state, PULL_PCL_FROM_STACK_INC_SP);
     break;
 // LDA Indexed Absolute Y
   case 0xB9:
+      state->cpu->destination_reg = &state->cpu->registers->ACC;
+      state->cpu->source_reg = &state->cpu->registers->Y;
  /* 2     PC      R  fetch low byte of address, increment PC */
       add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);      
  /*        3     PC      R  fetch high byte of address, add index register to low address byte, increment PC */
-      // TODO: Replace, might be very wrong
-      add_action_to_queue(state, FETCH_HIGH_ADDR_BYTE_INC_PC);
+      add_action_to_queue(state, FETCH_EFF_ADDR_HIGH_ADD_Y_INC_PC);
  /*        4  address+Y* R  read from effective address,fix the high byte of effective address */
+
       add_action_to_queue(state, READ_FROM_EFF_ADDR_FIX_HIGH_BYTE);
+      /* add_action_to_queue(state, READ_EFF_ADDR_STORE_IN_REG_AFFECT_NZ_FLAGS);       */
  /*        5+ address+Y  R  re-read from effective address */
  /*              * The high byte of the effective address may be invalid */
  /*                at this time, i.e. it may be smaller by $100. */
