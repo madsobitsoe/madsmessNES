@@ -1449,6 +1449,23 @@ void add_instruction_to_queue(nes_state *state) {
     // ^Will be added in 313 if necessary
     break;
 
+    // EOR absolute, Y
+  case 0x59:
+        /* 2     PC      R  fetch low byte of address, increment PC */
+        /* 3     PC      R  fetch high byte of address, */
+        /*                  add index register to low address byte, */
+        /*                  increment PC */
+        /* 4  address+I* R  read from effective address, */
+        /*                  fix the high byte of effective address */
+        /* 5+ address+I  R  re-read from effective address */
+      state->cpu->destination_reg = &state->cpu->registers->ACC;
+      state->cpu->source_reg = &state->cpu->registers->Y;
+    
+      add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);
+      add_action_to_queue(state, FETCH_EFF_ADDR_HIGH_ADD_Y_INC_PC);
+      add_action_to_queue(state, EOR_MEMORY);
+      
+      break;
 
     // RTS - Return from subroutine
   case 0x60:
