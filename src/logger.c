@@ -912,6 +912,36 @@ void disass(nes_state *state, char *output) {
             state->cpu->current_opcode);
     break;
 
+
+  // STA Absolute Y
+  case 0x99:
+  {
+      uint16_t addr = read_mem(state, state->cpu->current_opcode_PC+2) << 8;
+      addr |= read_mem(state, state->cpu->current_opcode_PC+1);
+      // Handle wrap-around
+      if (((uint32_t) addr) + ((uint32_t) state->cpu->registers->Y) > 0xFFFF) {
+	  addr = state->cpu->registers->Y - 1;
+      }
+      else {
+	  addr += state->cpu->registers->Y;
+      }
+      sprintf(output, "%04X  %02X %02X %02X  STA $%02X%02X,Y @ %02X%02X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              read_mem(state, state->cpu->current_opcode_PC+1),
+              read_mem(state, state->cpu->current_opcode_PC+2),
+              read_mem(state, state->cpu->current_opcode_PC+2),
+              read_mem(state, state->cpu->current_opcode_PC+1),
+	      addr >> 8,
+	      addr & 0xFF,
+              /* read_mem(state, state->cpu->current_opcode_PC+2), */
+              /* read_mem(state, state->cpu->current_opcode_PC+1), */
+              read_mem(state, addr));
+      
+  }
+  break;
+
+    
     // TXS
   case 0x9A:
     sprintf(output, "%04X  %02X        TXS",

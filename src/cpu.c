@@ -833,6 +833,18 @@ void execute_next_action(nes_state *state) {
       *state->cpu->destination_reg = (uint8_t) res;
     }
     break;
+
+    // STA read from effective address, "fix high byte" (write to destination_reg)
+  case STA_READ_FROM_EFF_ADDR_FIX_HIGH_BYTE:
+    {
+
+      uint16_t addr = ((uint16_t) state->cpu->low_addr_byte) | (((uint16_t) state->cpu->high_addr_byte) << 8);
+
+      state->memory[addr] = *state->cpu->destination_reg;
+    }
+    break;
+
+    
     // STA/STX/STY read from effective address, "fix high byte" (write to destination_reg)
   case STA_STX_STY_READ_FROM_EFF_ADDR_FIX_HIGH_BYTE:
     {
@@ -1810,6 +1822,28 @@ add_action_to_queue(state, PULL_PCL_FROM_STACK_INC_SP);
     state->cpu->destination_reg = &state->cpu->registers->ACC;
     add_action_to_queue(state, COPY_SOURCE_REG_TO_DEST_REG_AFFECT_NZ_FLAGS);
     break;
+    // STA absolute, Y
+  case 0x99:
+        /* 2     PC      R  fetch low byte of address, increment PC */
+        /* 3     PC      R  fetch high byte of address, */
+        /*                  add index register to low address byte, */
+        /*                  increment PC */
+        /* 4  address+I* R  read from effective address, */
+        /*                  fix the high byte of effective address */
+        /* 5+ address+I  R  re-read from effective address */
+      state->cpu->destination_reg = &state->cpu->registers->ACC;
+      state->cpu->source_reg = &state->cpu->registers->Y;
+    
+      add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);
+      add_action_to_queue(state, FETCH_EFF_ADDR_HIGH_ADD_Y_INC_PC);
+      // Add a stall-cycle as we don't do the read before the write.
+      add_action_to_queue(state, STALL_CYCLE);
+      add_action_to_queue(state, STA_READ_FROM_EFF_ADDR_FIX_HIGH_BYTE);
+      
+      break;
+    
+
+    
     // TXS - Transfer X to Stack Pointer, affect no flags
   case 0x9A:
     state->cpu->source_reg = &state->cpu->registers->X;
