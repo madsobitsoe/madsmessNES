@@ -2290,6 +2290,28 @@ add_action_to_queue(state, PULL_PCL_FROM_STACK_INC_SP);
   case 0xF8:
     add_action_to_queue(state, SET_DECIMAL_FLAG);
     break;
+
+    // SBC absolute, Y
+  case 0xF9:
+        /* 2     PC      R  fetch low byte of address, increment PC */
+        /* 3     PC      R  fetch high byte of address, */
+        /*                  add index register to low address byte, */
+        /*                  increment PC */
+        /* 4  address+I* R  read from effective address, */
+        /*                  fix the high byte of effective address */
+        /* 5+ address+I  R  re-read from effective address */
+      state->cpu->destination_reg = &state->cpu->registers->ACC;
+      state->cpu->source_reg = &state->cpu->registers->Y;
+    
+      add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);
+      add_action_to_queue(state, FETCH_EFF_ADDR_HIGH_ADD_Y_INC_PC);
+      
+      add_action_to_queue(state, SBC_MEMORY);
+      
+      break;
+    
+
+    
     // unimplemented instruction is a fatal error
     // Flag it so emulation can be stopped
   default:
