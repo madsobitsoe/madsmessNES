@@ -1117,6 +1117,23 @@ void add_instruction_to_queue(nes_state *state) {
   case 0x18:
     add_action_to_queue(state, CLEAR_CARRY_FLAG);
     break;
+    // ORA absolute, Y
+  case 0x19:
+        /* 2     PC      R  fetch low byte of address, increment PC */
+        /* 3     PC      R  fetch high byte of address, */
+        /*                  add index register to low address byte, */
+        /*                  increment PC */
+        /* 4  address+I* R  read from effective address, */
+        /*                  fix the high byte of effective address */
+        /* 5+ address+I  R  re-read from effective address */
+      state->cpu->destination_reg = &state->cpu->registers->ACC;
+      state->cpu->source_reg = &state->cpu->registers->Y;
+    
+    add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);
+    add_action_to_queue(state, FETCH_EFF_ADDR_HIGH_ADD_Y_INC_PC);
+    add_action_to_queue(state, ORA_MEMORY);
+      
+      break;
     // JSR
   case 0x20:
     add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);
@@ -1271,6 +1288,26 @@ void add_instruction_to_queue(nes_state *state) {
   case 0x38:
     add_action_to_queue(state, SET_CARRY_FLAG);
     break;
+
+    // AND absolute, Y
+  case 0x39:
+        /* 2     PC      R  fetch low byte of address, increment PC */
+        /* 3     PC      R  fetch high byte of address, */
+        /*                  add index register to low address byte, */
+        /*                  increment PC */
+        /* 4  address+I* R  read from effective address, */
+        /*                  fix the high byte of effective address */
+        /* 5+ address+I  R  re-read from effective address */
+      state->cpu->destination_reg = &state->cpu->registers->ACC;
+      state->cpu->source_reg = &state->cpu->registers->Y;
+    
+      add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);
+      add_action_to_queue(state, FETCH_EFF_ADDR_HIGH_ADD_Y_INC_PC);
+      add_action_to_queue(state, AND_MEMORY);
+      
+      break;
+
+    
     // RTI - Return from interrupt
   case 0x40:
     /* 2    PC     R  read next instruction byte (and throw it away) */
