@@ -96,6 +96,7 @@ enum ACTION {
     ASL_MEMORY = 409,
     ROR_MEMORY = 410,
     ROL_MEMORY = 411,
+    LDY_ZEROPAGE_ADD_INDEX = 500,
 };
 
 

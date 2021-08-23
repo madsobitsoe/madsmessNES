@@ -1137,6 +1137,24 @@ void disass(nes_state *state, char *output) {
               value);
     }
     break;
+
+    // LDY Zeropage, X
+  case 0xB4:
+    {
+      uint16_t addr = (uint16_t) read_mem(state, state->cpu->current_opcode_PC+1);
+      addr += state->cpu->registers->X;
+      addr &= 0xFF;
+      sprintf(output, "%04X  %02X %02X     LDY $%02X,X @ %02X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              read_mem(state, state->cpu->current_opcode_PC+1),
+              read_mem(state, state->cpu->current_opcode_PC+1),
+	      (uint8_t) addr,
+              read_mem(state, addr));
+    }
+    break;
+
+    
     // CLV
   case 0xB8:
     sprintf(output, "%04X  %02X        CLV",
