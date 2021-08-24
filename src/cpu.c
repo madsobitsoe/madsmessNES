@@ -1518,6 +1518,27 @@ void add_instruction_to_queue(nes_state *state) {
       add_action_to_queue(state, EOR_MEMORY);
       break;
 
+
+// LSR zero page, X
+  case 0x56:
+      state->cpu->high_addr_byte = 0;
+        /* 2     PC      R  fetch address, increment PC */
+      add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);
+        /* 3   address   R  read from address, add index register X to it */
+      add_action_to_queue(state, LDY_ZEROPAGE_ADD_INDEX);
+        /* 4  address+X* R  read from effective address */
+      add_action_to_queue(state, STALL_CYCLE);
+        /* 5  address+X* W  write the value back to effective address, */
+        /*                  and do the operation on it */
+      add_action_to_queue(state, STALL_CYCLE);      
+        /* 6  address+X* W  write the new value to effective address */
+      add_action_to_queue(state, LSR_MEMORY);
+
+      break;
+
+
+
+      
     // EOR absolute, Y
   case 0x59:
         /* 2     PC      R  fetch low byte of address, increment PC */
