@@ -1447,6 +1447,21 @@ void disass(nes_state *state, char *output) {
     }
     break;
 
+    // CMP Zeropage, X
+  case 0xD5:
+    {
+      uint16_t addr = (uint16_t) read_mem(state, state->cpu->current_opcode_PC+1);
+      addr += state->cpu->registers->X;
+      addr &= 0xFF;
+      sprintf(output, "%04X  %02X %02X     CMP $%02X,X @ %02X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              read_mem(state, state->cpu->current_opcode_PC+1),
+              read_mem(state, state->cpu->current_opcode_PC+1),
+	      (uint8_t) addr,
+              read_mem(state, addr));
+    }
+    break;
 
     // CLD
   case 0xD8:
@@ -1664,7 +1679,23 @@ void disass(nes_state *state, char *output) {
     }
     break;
 
+    // SBC Zeropage, X
+  case 0xF5:
+    {
+      uint16_t addr = (uint16_t) read_mem(state, state->cpu->current_opcode_PC+1);
+      addr += state->cpu->registers->X;
+      addr &= 0xFF;
+      sprintf(output, "%04X  %02X %02X     SBC $%02X,X @ %02X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              read_mem(state, state->cpu->current_opcode_PC+1),
+              read_mem(state, state->cpu->current_opcode_PC+1),
+	      (uint8_t) addr,
+              read_mem(state, addr));
+    }
+    break;
 
+    
     // SED
   case 0xF8:
     sprintf(output, "%04X  %02X        SED",

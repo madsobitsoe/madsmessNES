@@ -2239,6 +2239,17 @@ add_action_to_queue(state, PULL_PCL_FROM_STACK_INC_SP);
     // ^Will be added in 313 if necessary
     break;
 
+  // CMP zeropage, X
+  case 0xD5:
+      /* 2     PC      R  fetch address, increment PC */
+      state->cpu->high_addr_byte = 0x0;
+      add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);      
+      /* 3   address   R  read from address, add index register to it */
+      add_action_to_queue(state, LDY_ZEROPAGE_ADD_INDEX);
+      /* 4  address+I* R  read from effective address */
+      add_action_to_queue(state, CMP_MEMORY);
+      break;
+
     // CLD - Clear Decimal Flag
   case 0xD8:
     add_action_to_queue(state, CLEAR_DECIMAL_FLAG);
@@ -2404,7 +2415,18 @@ add_action_to_queue(state, PULL_PCL_FROM_STACK_INC_SP);
     // ^Will be added in 313 if necessary
     break;
 
+  // SBC zeropage, X
+  case 0xF5:
+      /* 2     PC      R  fetch address, increment PC */
+      state->cpu->high_addr_byte = 0x0;
+      add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);      
+      /* 3   address   R  read from address, add index register to it */
+      add_action_to_queue(state, LDY_ZEROPAGE_ADD_INDEX);
+      /* 4  address+I* R  read from effective address */
+      add_action_to_queue(state, SBC_MEMORY);
+      break;
 
+      
     // SED - Set Decimal Flag
   case 0xF8:
     add_action_to_queue(state, SET_DECIMAL_FLAG);
