@@ -1030,7 +1030,7 @@ void execute_next_action(nes_state *state) {
     break;
 
   case LDY_ZEROPAGE_ADD_INDEX:
-      state->cpu->low_addr_byte += *state->cpu->source_reg;
+      state->cpu->low_addr_byte += state->cpu->registers->X;
       state->cpu->high_addr_byte = 0;
       break;
 
@@ -1151,6 +1151,17 @@ void add_instruction_to_queue(nes_state *state) {
     /*       6+  address+Y   R  read from effective address */
     // ^Will be added in 313 if necessary
     break;
+// ORA zeropage, X
+  case 0x15:
+        /* 2     PC      R  fetch address, increment PC */
+    state->cpu->high_addr_byte = 0x0;
+    add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);      
+        /* 3   address   R  read from address, add index register to it */
+    add_action_to_queue(state, LDY_ZEROPAGE_ADD_INDEX);
+        /* 4  address+I* R  read from effective address */
+    add_action_to_queue(state, ORA_MEMORY);
+      break;
+    
     // CLC
   case 0x18:
     add_action_to_queue(state, CLEAR_CARRY_FLAG);
@@ -1823,6 +1834,27 @@ add_action_to_queue(state, PULL_PCL_FROM_STACK_INC_SP);
     break;
 
 
+// STY zero page, X
+  case 0x94:
+        /* 2     PC      R  fetch address, increment PC */
+        /* 3   address   R  read from address, add index register to it */
+        /* 4  address+I* W  write to effective address */
+
+      state->cpu->source_reg = &state->cpu->registers->Y;
+       /*  2     PC      R  fetch address, increment PC */
+      add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);
+       /*  3   address   R  read from address, add index register to it */
+      add_action_to_queue(state, LDY_ZEROPAGE_ADD_INDEX);
+       /*  4  address+I* R  Write to effective address */
+      add_action_to_queue(state, WRITE_REG_TO_EFF_ADDR_ZEROPAGE);
+       /* Notes: I denotes either index register (X or Y). */
+
+       /*        * The high byte of the effective address is always zero, */
+       /*          i.e. page boundary crossings are not handled. */
+
+      break;
+
+    
     // TYA
   case 0x98:
     state->cpu->source_reg = &state->cpu->registers->Y;
