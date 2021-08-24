@@ -115,6 +115,24 @@ void disass(nes_state *state, char *output) {
               read_mem(state, addr));
     }
     break;
+
+    // ASL Zeropage, X
+  case 0x16:
+    {
+      uint16_t addr = (uint16_t) read_mem(state, state->cpu->current_opcode_PC+1);
+      addr += state->cpu->registers->X;
+      addr &= 0xFF;
+      sprintf(output, "%04X  %02X %02X     ASL $%02X,X @ %02X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              read_mem(state, state->cpu->current_opcode_PC+1),
+              read_mem(state, state->cpu->current_opcode_PC+1),
+	      (uint8_t) addr,
+              read_mem(state, addr));
+    }
+    break;
+
+
     
     // CLC
   case 0x18:
@@ -426,6 +444,21 @@ void disass(nes_state *state, char *output) {
     }
     break;
 
+    // ROL Zeropage, X
+  case 0x36:
+    {
+      uint16_t addr = (uint16_t) read_mem(state, state->cpu->current_opcode_PC+1);
+      addr += state->cpu->registers->X;
+      addr &= 0xFF;
+      sprintf(output, "%04X  %02X %02X     ROL $%02X,X @ %02X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              read_mem(state, state->cpu->current_opcode_PC+1),
+              read_mem(state, state->cpu->current_opcode_PC+1),
+	      (uint8_t) addr,
+              read_mem(state, addr));
+    }
+    break;
 
     // RTI - Return from Interrupt
   case 0x40:
@@ -814,6 +847,24 @@ void disass(nes_state *state, char *output) {
     }
     break;
 
+    // ROR Zeropage, X
+  case 0x76:
+    {
+      uint16_t addr = (uint16_t) read_mem(state, state->cpu->current_opcode_PC+1);
+      addr += state->cpu->registers->X;
+      addr &= 0xFF;
+      sprintf(output, "%04X  %02X %02X     ROR $%02X,X @ %02X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              read_mem(state, state->cpu->current_opcode_PC+1),
+              read_mem(state, state->cpu->current_opcode_PC+1),
+	      (uint8_t) addr,
+              read_mem(state, addr));
+    }
+    break;
+
+
+    
     // SEI
   case 0x78:
     sprintf(output, "%04X  %02X        SEI",
@@ -1509,6 +1560,25 @@ void disass(nes_state *state, char *output) {
     }
     break;
 
+    // DEC Zeropage, X
+  case 0xD6:
+    {
+      uint16_t addr = (uint16_t) read_mem(state, state->cpu->current_opcode_PC+1);
+      addr += state->cpu->registers->X;
+      addr &= 0xFF;
+      sprintf(output, "%04X  %02X %02X     DEC $%02X,X @ %02X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              read_mem(state, state->cpu->current_opcode_PC+1),
+              read_mem(state, state->cpu->current_opcode_PC+1),
+	      (uint8_t) addr,
+              read_mem(state, addr));
+    }
+    break;
+
+
+
+    
     // CLD
   case 0xD8:
     sprintf(output, "%04X  %02X        CLD",
@@ -1741,6 +1811,21 @@ void disass(nes_state *state, char *output) {
     }
     break;
 
+    // INC Zeropage, X
+  case 0xF6:
+    {
+      uint16_t addr = (uint16_t) read_mem(state, state->cpu->current_opcode_PC+1);
+      addr += state->cpu->registers->X;
+      addr &= 0xFF;
+      sprintf(output, "%04X  %02X %02X     INC $%02X,X @ %02X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              read_mem(state, state->cpu->current_opcode_PC+1),
+              read_mem(state, state->cpu->current_opcode_PC+1),
+	      (uint8_t) addr,
+              read_mem(state, addr));
+    }
+    break;
     
     // SED
   case 0xF8:

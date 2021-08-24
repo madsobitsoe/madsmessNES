@@ -1161,7 +1161,26 @@ void add_instruction_to_queue(nes_state *state) {
         /* 4  address+I* R  read from effective address */
     add_action_to_queue(state, ORA_MEMORY);
       break;
-    
+
+// ASL zero page, X
+  case 0x16:
+      state->cpu->high_addr_byte = 0;
+        /* 2     PC      R  fetch address, increment PC */
+      add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);
+        /* 3   address   R  read from address, add index register X to it */
+      add_action_to_queue(state, LDY_ZEROPAGE_ADD_INDEX);
+        /* 4  address+X* R  read from effective address */
+      add_action_to_queue(state, STALL_CYCLE);
+        /* 5  address+X* W  write the value back to effective address, */
+        /*                  and do the operation on it */
+      add_action_to_queue(state, STALL_CYCLE);      
+        /* 6  address+X* W  write the new value to effective address */
+      add_action_to_queue(state, ASL_MEMORY);
+
+      break;
+
+
+      
     // CLC
   case 0x18:
     add_action_to_queue(state, CLEAR_CARRY_FLAG);
@@ -1342,7 +1361,27 @@ void add_instruction_to_queue(nes_state *state) {
       /* 4  address+I* R  read from effective address */
       add_action_to_queue(state, AND_MEMORY);
       break;
-    
+
+// ROL zero page, X
+  case 0x36:
+      state->cpu->high_addr_byte = 0;
+        /* 2     PC      R  fetch address, increment PC */
+      add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);
+        /* 3   address   R  read from address, add index register X to it */
+      add_action_to_queue(state, LDY_ZEROPAGE_ADD_INDEX);
+        /* 4  address+X* R  read from effective address */
+      add_action_to_queue(state, STALL_CYCLE);
+        /* 5  address+X* W  write the value back to effective address, */
+        /*                  and do the operation on it */
+      add_action_to_queue(state, STALL_CYCLE);      
+        /* 6  address+X* W  write the new value to effective address */
+      add_action_to_queue(state, ROL_MEMORY);
+
+      break;
+
+
+
+      
     // SEC - set carry flag
   case 0x38:
     add_action_to_queue(state, SET_CARRY_FLAG);
@@ -1725,6 +1764,26 @@ add_action_to_queue(state, PULL_PCL_FROM_STACK_INC_SP);
       add_action_to_queue(state, ADC_MEMORY);
       break;
 
+// ROR zero page, X
+  case 0x76:
+      state->cpu->high_addr_byte = 0;
+        /* 2     PC      R  fetch address, increment PC */
+      add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);
+        /* 3   address   R  read from address, add index register X to it */
+      add_action_to_queue(state, LDY_ZEROPAGE_ADD_INDEX);
+        /* 4  address+X* R  read from effective address */
+      add_action_to_queue(state, STALL_CYCLE);
+        /* 5  address+X* W  write the value back to effective address, */
+        /*                  and do the operation on it */
+      add_action_to_queue(state, STALL_CYCLE);      
+        /* 6  address+X* W  write the new value to effective address */
+      add_action_to_queue(state, ROR_MEMORY);
+
+      break;
+
+
+
+      
     // SEI - Set Interrupt Flag
   case 0x78:
     add_action_to_queue(state, SET_INTERRUPT_FLAG);
@@ -2313,6 +2372,25 @@ add_action_to_queue(state, PULL_PCL_FROM_STACK_INC_SP);
       add_action_to_queue(state, CMP_MEMORY);
       break;
 
+// DEC zero page, X
+  case 0xD6:
+      state->cpu->high_addr_byte = 0;
+        /* 2     PC      R  fetch address, increment PC */
+      add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);
+        /* 3   address   R  read from address, add index register X to it */
+      add_action_to_queue(state, LDY_ZEROPAGE_ADD_INDEX);
+        /* 4  address+X* R  read from effective address */
+      add_action_to_queue(state, STALL_CYCLE);
+        /* 5  address+X* W  write the value back to effective address, */
+        /*                  and do the operation on it */
+      add_action_to_queue(state, STALL_CYCLE);      
+        /* 6  address+X* W  write the new value to effective address */
+      add_action_to_queue(state, DEC_MEMORY);
+
+      break;
+
+
+      
     // CLD - Clear Decimal Flag
   case 0xD8:
     add_action_to_queue(state, CLEAR_DECIMAL_FLAG);
@@ -2489,6 +2567,25 @@ add_action_to_queue(state, PULL_PCL_FROM_STACK_INC_SP);
       add_action_to_queue(state, SBC_MEMORY);
       break;
 
+// INC zero page, X
+  case 0xF6:
+      state->cpu->high_addr_byte = 0;
+        /* 2     PC      R  fetch address, increment PC */
+      add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);
+        /* 3   address   R  read from address, add index register X to it */
+      add_action_to_queue(state, LDY_ZEROPAGE_ADD_INDEX);
+        /* 4  address+X* R  read from effective address */
+      add_action_to_queue(state, STALL_CYCLE);
+        /* 5  address+X* W  write the value back to effective address, */
+        /*                  and do the operation on it */
+      add_action_to_queue(state, STALL_CYCLE);      
+        /* 6  address+X* W  write the new value to effective address */
+      add_action_to_queue(state, INC_MEMORY);
+
+      break;
+
+
+      
       
     // SED - Set Decimal Flag
   case 0xF8:
