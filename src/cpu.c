@@ -1332,7 +1332,17 @@ void add_instruction_to_queue(nes_state *state) {
   /*               was invalid during cycle #5, i.e. page boundary was crossed. */
     break;
 
-
+  // AND zeropage, X
+  case 0x35:
+      /* 2     PC      R  fetch address, increment PC */
+      state->cpu->high_addr_byte = 0x0;
+      add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);      
+      /* 3   address   R  read from address, add index register to it */
+      add_action_to_queue(state, LDY_ZEROPAGE_ADD_INDEX);
+      /* 4  address+I* R  read from effective address */
+      add_action_to_queue(state, AND_MEMORY);
+      break;
+    
     // SEC - set carry flag
   case 0x38:
     add_action_to_queue(state, SET_CARRY_FLAG);
