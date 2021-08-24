@@ -1507,6 +1507,16 @@ void add_instruction_to_queue(nes_state *state) {
   /*       6+  address+Y   R  read from effective address */
     // ^Will be added in 313 if necessary
     break;
+  // EOR zeropage, X
+  case 0x55:
+      /* 2     PC      R  fetch address, increment PC */
+      state->cpu->high_addr_byte = 0x0;
+      add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);      
+      /* 3   address   R  read from address, add index register to it */
+      add_action_to_queue(state, LDY_ZEROPAGE_ADD_INDEX);
+      /* 4  address+I* R  read from effective address */
+      add_action_to_queue(state, EOR_MEMORY);
+      break;
 
     // EOR absolute, Y
   case 0x59:
@@ -1683,6 +1693,16 @@ add_action_to_queue(state, PULL_PCL_FROM_STACK_INC_SP);
     // ^Will be added in 313 if necessary
     break;
 
+  // ADC zeropage, X
+  case 0x75:
+      /* 2     PC      R  fetch address, increment PC */
+      state->cpu->high_addr_byte = 0x0;
+      add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);      
+      /* 3   address   R  read from address, add index register to it */
+      add_action_to_queue(state, LDY_ZEROPAGE_ADD_INDEX);
+      /* 4  address+I* R  read from effective address */
+      add_action_to_queue(state, ADC_MEMORY);
+      break;
 
     // SEI - Set Interrupt Flag
   case 0x78:
