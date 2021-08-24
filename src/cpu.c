@@ -1884,6 +1884,27 @@ add_action_to_queue(state, PULL_PCL_FROM_STACK_INC_SP);
 
       break;
 
+
+// STA zero page, X
+  case 0x95:
+        /* 2     PC      R  fetch address, increment PC */
+        /* 3   address   R  read from address, add index register to it */
+        /* 4  address+I* W  write to effective address */
+
+      state->cpu->source_reg = &state->cpu->registers->ACC;
+       /*  2     PC      R  fetch address, increment PC */
+      add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);
+       /*  3   address   R  read from address, add index register to it */
+      add_action_to_queue(state, LDY_ZEROPAGE_ADD_INDEX);
+       /*  4  address+I* R  Write to effective address */
+      add_action_to_queue(state, WRITE_REG_TO_EFF_ADDR_ZEROPAGE);
+       /* Notes: I denotes either index register (X or Y). */
+
+       /*        * The high byte of the effective address is always zero, */
+       /*          i.e. page boundary crossings are not handled. */
+
+      break;
+      
     
     // TYA
   case 0x98:
@@ -2084,7 +2105,28 @@ add_action_to_queue(state, PULL_PCL_FROM_STACK_INC_SP);
        /*          i.e. page boundary crossings are not handled. */
 
       break;
-    // CLV - Clear Overflow Flag
+
+
+
+// LDA zero page, X
+  case 0xB5:
+      state->cpu->source_reg = &state->cpu->registers->X;
+      state->cpu->destination_reg = &state->cpu->registers->ACC;
+       /*  2     PC      R  fetch address, increment PC */
+      add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);
+       /*  3   address   R  read from address, add index register to it */
+      add_action_to_queue(state, LDY_ZEROPAGE_ADD_INDEX);
+       /*  4  address+I* R  read from effective address */
+      add_action_to_queue(state, READ_EFF_ADDR_STORE_IN_REG_AFFECT_NZ_FLAGS);
+       /* Notes: I denotes either index register (X or Y). */
+
+       /*        * The high byte of the effective address is always zero, */
+       /*          i.e. page boundary crossings are not handled. */
+
+      break;
+
+
+// CLV - Clear Overflow Flag
   case 0xB8:
     add_action_to_queue(state, CLEAR_OVERFLOW_FLAG);
     break;
