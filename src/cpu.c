@@ -231,7 +231,8 @@ void execute_next_action(nes_state *state) {
 
     /* add operand to PCL. */
   case ADD_OPERAND_TO_PCL:
-    state->cpu->registers->PC += state->cpu->operand;
+      // Displacement for branches are signed 8 bit
+      state->cpu->registers->PC += (int8_t) state->cpu->operand;
     break;
     /* increment PC. */
   case INC_PC:
