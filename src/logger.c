@@ -1275,6 +1275,7 @@ void disass(nes_state *state, char *output) {
             read_mem(state, state->cpu->current_opcode_PC+1),
             read_mem(state, read_mem(state, state->cpu->current_opcode_PC+1)));
     break;
+    
     // DEY
   case 0x88:
     sprintf(output, "%04X  %02X        DEY",
@@ -1525,6 +1526,27 @@ void disass(nes_state *state, char *output) {
             read_mem(state, state->cpu->current_opcode_PC+1));
     break;
 
+    // *LAX indirect,X - Illegal opcode, combines LDA and LDX
+  case 0xA3:
+    {
+      uint8_t operand = read_mem(state, state->cpu->current_opcode_PC+1);
+      uint16_t addr_addr = (uint16_t) state->cpu->registers->X + (uint16_t) operand;
+      addr_addr &= 0xFF;
+      uint16_t effective_addr = ((uint16_t) read_mem(state, addr_addr)) | (((uint16_t) read_mem(state, (addr_addr+1) & 0xFF)) << 8);
+      uint8_t value = read_mem(state, effective_addr);
+      sprintf(output, "%04X  %02X %02X    *LAX ($%02X,X) @ %02X = %04X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              operand,
+              operand,
+              addr_addr,
+              effective_addr,
+              value);
+    }
+    break;
+
+
+    
     // LDY Zeropage
   case 0xA4:
     {
@@ -1567,6 +1589,17 @@ void disass(nes_state *state, char *output) {
               read_mem(state, addr));
     }
     break;
+
+    // *LAX Zero Page - illegal instruction
+  case 0xA7:
+    sprintf(output, "%04X  %02X %02X    *LAX $%02X = %02X",
+            state->cpu->current_opcode_PC,
+            state->cpu->current_opcode,
+            read_mem(state, state->cpu->current_opcode_PC+1),
+            read_mem(state, state->cpu->current_opcode_PC+1),
+            read_mem(state, read_mem(state, state->cpu->current_opcode_PC+1)));
+    break;
+
     
     // TAY
   case 0xA8:
@@ -1641,6 +1674,24 @@ void disass(nes_state *state, char *output) {
               read_mem(state, addr));
     }
     break;
+
+    // *LAX Absolute - Illegal opcode
+  case 0xAF:
+    {
+      uint16_t addr = read_mem(state, state->cpu->current_opcode_PC+2) << 8;
+      addr |= read_mem(state, state->cpu->current_opcode_PC+1);
+
+      sprintf(output, "%04X  %02X %02X %02X *LAX $%02X%02X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              read_mem(state, state->cpu->current_opcode_PC+1),
+              read_mem(state, state->cpu->current_opcode_PC+2),
+              read_mem(state, state->cpu->current_opcode_PC+2),
+              read_mem(state, state->cpu->current_opcode_PC+1),
+              read_mem(state, addr));
+    }
+    break;
+
     
     // BCS
   case 0xB0:
@@ -1687,6 +1738,44 @@ void disass(nes_state *state, char *output) {
     }
     break;
 
+    // *LAX indirect-indexed,Y - Illegal opcode
+  case 0xB3:
+    {
+      /* LDY #$04 */
+      /*   LDA ($02),Y */
+      /*   In the above case, Y is loaded with four (4), and the vector is given as ($02) */
+      /* If zero page memory $02-$03 contains 00 80, then the effective address from the vector ($02) plus the offset (Y) would be $8004. */
+
+      uint8_t operand = read_mem(state, state->cpu->current_opcode_PC+1);
+      uint8_t low_addr = read_mem(state, (uint16_t) operand);
+      uint8_t high_addr = read_mem(state, (uint16_t) (operand + 1));
+
+      // check if page boundary was crossed and fix addresses
+      /* uint16_t base = (uint16_t) low_addr | ((uint16_t) high_addr) << 8; */
+      /* uint16_t offset = (uint16_t) state->cpu->registers->Y; */
+      /* if (((base & 0xFF) + offset) > 0xFF) { */
+      /*   /\* effective_addr += 0x100; *\/ */
+      /*   if (high_addr < 0xFF) { high_addr++; } */
+      /* } */
+      uint16_t effective_addr = (uint16_t) low_addr | ((uint16_t) high_addr) << 8;
+      effective_addr += (uint16_t) state->cpu->registers->Y;
+
+
+      uint8_t value = read_mem(state, effective_addr);
+      sprintf(output, "%04X  %02X %02X    *LAX ($%02X),Y = %02X%02X @ %04X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              operand,
+              operand,
+              high_addr,
+              low_addr,
+              effective_addr,
+              value);
+    }
+    break;
+
+
+    
     // LDY Zeropage, X
   case 0xB4:
     {
@@ -1734,6 +1823,23 @@ void disass(nes_state *state, char *output) {
               read_mem(state, addr));
     }
     break;
+
+    // *LAX Zeropage, Y - Illegal instruction
+  case 0xB7:
+    {
+      uint16_t addr = (uint16_t) read_mem(state, state->cpu->current_opcode_PC+1);
+      addr += state->cpu->registers->Y;
+      addr &= 0xFF;
+      sprintf(output, "%04X  %02X %02X    *LAX $%02X,Y @ %02X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              read_mem(state, state->cpu->current_opcode_PC+1),
+              read_mem(state, state->cpu->current_opcode_PC+1),
+	      (uint8_t) addr,
+              read_mem(state, addr));
+    }
+    break;
+
     
     // CLV
   case 0xB8:
@@ -1849,6 +1955,32 @@ void disass(nes_state *state, char *output) {
               read_mem(state, addr));
     }
     break;
+
+    // *LAX Absolute X
+  case 0xBF:
+    {
+      uint16_t addr = read_mem(state, state->cpu->current_opcode_PC+2) << 8;
+      addr |= read_mem(state, state->cpu->current_opcode_PC+1);
+      // Handle wrap-around
+      if (((uint32_t) addr) + ((uint32_t) state->cpu->registers->Y) > 0xFFFF) {
+	  addr = state->cpu->registers->Y - 1;
+      }
+      else {
+	  addr += state->cpu->registers->Y;
+      }
+      sprintf(output, "%04X  %02X %02X %02X *LAX $%02X%02X,Y @ %02X%02X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              read_mem(state, state->cpu->current_opcode_PC+1),
+              read_mem(state, state->cpu->current_opcode_PC+2),
+              read_mem(state, state->cpu->current_opcode_PC+2),
+              read_mem(state, state->cpu->current_opcode_PC+1),
+	      addr >> 8,
+	      addr & 0xFF,
+              read_mem(state, addr));
+    }
+    break;
+
     
     // CPY immediate
   case 0xC0:

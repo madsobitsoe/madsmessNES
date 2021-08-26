@@ -643,6 +643,20 @@ void execute_next_action(nes_state *state) {
       if (value & 0x80) { set_negative_flag(state); } else { clear_negative_flag(state); }
     }
     break;
+
+    // Used in illegal LAX instruction
+  case LAX_READ_EFF_ADDR_STORE_IN_REGS_AFFECT_NZ_FLAGS:
+  {
+      uint16_t addr = state->cpu->high_addr_byte << 8 | state->cpu->low_addr_byte;
+           
+      uint8_t value = read_mem(state, addr);
+      state->cpu->registers->ACC = value;
+      state->cpu->registers->X = value;
+      if (value == 0) { set_zero_flag(state); } else { clear_zero_flag(state); }
+      if (value & 0x80) { set_negative_flag(state); } else { clear_negative_flag(state); }
+    }
+    break;
+
     // Read from address, add X-register to result, store in "operand"
   case READ_ADDR_ADD_INDEX_STORE_IN_OPERAND:
     state->cpu->operand = read_mem(state, state->cpu->registers->PC - 1);
@@ -653,13 +667,29 @@ void execute_next_action(nes_state *state) {
   case FETCH_EFF_ADDR_LOW:
     state->cpu->low_addr_byte = read_mem(state, (uint16_t) state->cpu->operand);
     break;
+    
     // Fetch effective address high
   case FETCH_EFF_ADDR_HIGH:
     /* printf("fetching high addr_byte from %04X\n", (uint16_t) state->cpu->operand+1); */
     state->cpu->high_addr_byte = read_mem(state, (uint16_t) ((uint16_t) state->cpu->operand+1) & 0xff);
-
     break;
 
+    // Fetch effective address high, add index to full addr
+  case FETCH_EFF_ADDR_HIGH_ADD_INDEX:
+    /* printf("fetching high addr_byte from %04X\n", (uint16_t) state->cpu->operand+1); */
+    uint16_t addr = read_mem(state, (uint16_t) ((uint16_t) state->cpu->operand+1) & 0xff);
+    addr = addr << 8;
+    addr |= state->cpu->low_addr_byte;
+    // Figure out if page boundary was crossed, add stall cycle if needed
+    if (((addr >> 8) != ((addr + *state->cpu->index_reg) >> 8))) {
+	  add_action_to_queue(state, STALL_CYCLE);
+    }
+    
+    addr += *state->cpu->index_reg;
+    state->cpu->low_addr_byte = addr & 0xFF;
+    state->cpu->high_addr_byte = addr >> 8;
+    break;    
+    
     // Fetch zeropage pointer address, store pointer in "operand", increment PC
   case FETCH_ZP_PTR_ADDR_INC_PC:
     {
@@ -2259,7 +2289,8 @@ add_action_to_queue(state, PULL_PCL_FROM_STACK_INC_SP);
     state->cpu->destination_reg = &state->cpu->registers->ACC;
     state->cpu->index_reg = &state->cpu->registers->X;
     /* 2      PC       R  fetch pointer address, increment PC */
-    add_action_to_queue(state, INC_PC); // increment PC, nowhere to store pointer
+    add_action_to_queue(state, FETCH_ZP_PTR_ADDR_INC_PC);
+    /* add_action_to_queue(state, INC_PC); // increment PC, nowhere to store pointer */
     /*   3    pointer    R  read from the address, add X to it */
     add_action_to_queue(state, READ_ADDR_ADD_INDEX_STORE_IN_OPERAND);
     /*   4   pointer+X   R  fetch effective address low */
@@ -2276,13 +2307,35 @@ add_action_to_queue(state, PULL_PCL_FROM_STACK_INC_SP);
     add_action_to_queue(state, 4);
     break;
 
+
+    // LAX indirect,x - illegal, combines LDA and LDX
+  case 0xA3:
+    /* state->cpu->high_addr_byte = 0x0; */
+    /* state->cpu->low_addr_byte = 0x0; */
+    state->cpu->source_reg = &state->cpu->registers->ACC;
+    state->cpu->destination_reg = &state->cpu->registers->ACC;
+    state->cpu->index_reg = &state->cpu->registers->X;
+    /* 2      PC       R  fetch pointer address, increment PC */
+    add_action_to_queue(state, INC_PC); // increment PC, nowhere to store pointer
+    /*   3    pointer    R  read from the address, add X to it */
+    add_action_to_queue(state, READ_ADDR_ADD_INDEX_STORE_IN_OPERAND);
+    /*   4   pointer+X   R  fetch effective address low */
+    add_action_to_queue(state, FETCH_EFF_ADDR_LOW);
+    /*   5  pointer+X+1  R  fetch effective address high */
+    add_action_to_queue(state, FETCH_EFF_ADDR_HIGH);
+    /*   6    address    R  read from effective address */
+    add_action_to_queue(state, LAX_READ_EFF_ADDR_STORE_IN_REGS_AFFECT_NZ_FLAGS);
+    break;
+
+
+    
     // LDY Zero page
   case 0xA4:
     // Clear out high addr byte, to ensure zero-page read
     state->cpu->high_addr_byte = 0x0;
     state->cpu->destination_reg = &state->cpu->registers->Y;
     /* 2    PC     R  fetch address, increment PC */
-    add_action_to_queue(state, 2);
+    add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);
     /*       3  address  R  read from effective address */
 
     add_action_to_queue(state, READ_EFF_ADDR_STORE_IN_REG_AFFECT_NZ_FLAGS);
@@ -2294,12 +2347,27 @@ add_action_to_queue(state, PULL_PCL_FROM_STACK_INC_SP);
     state->cpu->high_addr_byte = 0x0;
     state->cpu->destination_reg = &state->cpu->registers->ACC;
     /* 2    PC     R  fetch address, increment PC */
-    add_action_to_queue(state, 2);
+    add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);
     /*       3  address  R  read from effective address */
 
     add_action_to_queue(state, READ_EFF_ADDR_STORE_IN_REG_AFFECT_NZ_FLAGS);
     break;
 
+
+    // *LAX Zero page - illegal instruction
+  case 0xA7:
+    // Clear out high addr byte, to ensure zero-page read
+    state->cpu->high_addr_byte = 0x0;
+    state->cpu->destination_reg = &state->cpu->registers->ACC;
+    state->cpu->index_reg = &state->cpu->registers->X;
+    /* 2    PC     R  fetch address, increment PC */
+    add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);
+    /*       3  address  R  read from effective address */
+
+    add_action_to_queue(state, LAX_READ_EFF_ADDR_STORE_IN_REGS_AFFECT_NZ_FLAGS);
+    break;
+
+    
     // LDX Zero page
   case 0xA6:
     // Clear out high addr byte, to ensure zero-page read
@@ -2358,6 +2426,17 @@ add_action_to_queue(state, PULL_PCL_FROM_STACK_INC_SP);
     add_action_to_queue(state, READ_EFF_ADDR_STORE_IN_REG_AFFECT_NZ_FLAGS);
     break;
 
+    // *LAX Absolute - Illegal opcode
+  case 0xAF:
+    state->cpu->destination_reg = &state->cpu->registers->ACC;
+    state->cpu->index_reg = &state->cpu->registers->X;
+    add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);
+    add_action_to_queue(state, FETCH_HIGH_ADDR_BYTE_INC_PC);
+    // Read from effective address, copy to register
+    add_action_to_queue(state, LAX_READ_EFF_ADDR_STORE_IN_REGS_AFFECT_NZ_FLAGS);
+    break;
+
+    
     // TSX - Transfer SP to X
   case 0xBA:
     state->cpu->source_reg = &state->cpu->registers->SP;
@@ -2408,6 +2487,37 @@ add_action_to_queue(state, PULL_PCL_FROM_STACK_INC_SP);
   /*               was invalid during cycle #5, i.e. page boundary was crossed. */
     break;
 
+
+    // *LAX indirect-indexed, Y - Illegal instruction
+  case 0xB3:
+    state->cpu->index_reg = &state->cpu->registers->Y;
+  /* #    address   R/W description */
+  /*      --- ----------- --- ------------------------------------------ */
+  /*       1      PC       R  fetch opcode, increment PC */
+  /*       2      PC       R  fetch pointer address, increment PC */
+    add_action_to_queue(state, FETCH_ZP_PTR_ADDR_INC_PC);
+  /*       3    pointer    R  fetch effective address low */
+    add_action_to_queue(state, FETCH_EFF_ADDR_LOW);
+  /*       4   pointer+1   R  fetch effective address high, */
+  /*                          add Y to low byte of effective address */
+    add_action_to_queue(state, FETCH_EFF_ADDR_HIGH_ADD_INDEX);
+  /*       5   address+Y*  R  read from effective address, */
+  /*                          fix high byte of effective address */
+    add_action_to_queue(state, LAX_READ_EFF_ADDR_STORE_IN_REGS_AFFECT_NZ_FLAGS);
+  /*       6+  address+Y   R  read from effective address */
+    // ^Will be added in 313 if necessary
+  /*      Notes: The effective address is always fetched from zero page, */
+  /*             i.e. the zero page boundary crossing is not handled. */
+
+  /*             * The high byte of the effective address may be invalid */
+  /*               at this time, i.e. it may be smaller by $100. */
+
+  /*             + This cycle will be executed only if the effective address */
+  /*               was invalid during cycle #5, i.e. page boundary was crossed. */
+    break;
+
+
+    
 // LDY zero page, X
   case 0xB4:
       state->cpu->index_reg = &state->cpu->registers->X;
@@ -2456,6 +2566,23 @@ add_action_to_queue(state, PULL_PCL_FROM_STACK_INC_SP);
       add_action_to_queue(state, ZEROPAGE_ADD_INDEX);
        /*  4  address+I* R  read from effective address */
       add_action_to_queue(state, READ_EFF_ADDR_STORE_IN_REG_AFFECT_NZ_FLAGS);
+       /* Notes: I denotes either index register (X or Y). */
+
+       /*        * The high byte of the effective address is always zero, */
+       /*          i.e. page boundary crossings are not handled. */
+
+      break;
+
+
+// *LAX zero page, Y - Illegal instruction
+  case 0xB7:
+      state->cpu->index_reg = &state->cpu->registers->Y;
+       /*  2     PC      R  fetch address, increment PC */
+      add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);
+       /*  3   address   R  read from address, add index register to it */
+      add_action_to_queue(state, ZEROPAGE_ADD_INDEX);
+       /*  4  address+I* R  read from effective address */
+      add_action_to_queue(state, LAX_READ_EFF_ADDR_STORE_IN_REGS_AFFECT_NZ_FLAGS);
        /* Notes: I denotes either index register (X or Y). */
 
        /*        * The high byte of the effective address is always zero, */
@@ -2545,6 +2672,23 @@ add_action_to_queue(state, PULL_PCL_FROM_STACK_INC_SP);
       add_action_to_queue(state, READ_EFF_ADDR_STORE_IN_REG_AFFECT_NZ_FLAGS);
       break;
 
+
+    // *LAX absolute, Y - Illegal instruction
+  case 0xBF:
+        /* 2     PC      R  fetch low byte of address, increment PC */
+        /* 3     PC      R  fetch high byte of address, */
+        /*                  add index register to low address byte, */
+        /*                  increment PC */
+        /* 4  address+I* R  read from effective address, */
+        /*                  fix the high byte of effective address */
+        /* 5+ address+I  R  re-read from effective address */
+      state->cpu->index_reg = &state->cpu->registers->Y;
+      add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);
+      add_action_to_queue(state, FETCH_EFF_ADDR_HIGH_ADD_INDEX_INC_PC);
+      add_action_to_queue(state, LAX_READ_EFF_ADDR_STORE_IN_REGS_AFFECT_NZ_FLAGS);
+      break;
+
+      
     // CMP indexed indirect
   case 0xC1:
     /*   2      PC       R  fetch pointer address, increment PC */
