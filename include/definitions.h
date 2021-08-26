@@ -21,6 +21,7 @@ typedef struct CPU_STATE {
   uint8_t high_addr_byte;
   uint8_t *destination_reg;
   uint8_t *source_reg;
+  uint8_t *index_reg;
   uint8_t operand;
   uint16_t current_opcode_PC;
   uint64_t cpu_cycle;

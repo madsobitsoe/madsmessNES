@@ -645,10 +645,11 @@ void execute_next_action(nes_state *state) {
     }
     break;
     // Read from address, add X-register to result, store in "operand"
-  case READ_ADDR_ADD_X_STORE_IN_OPERAND:
+  case READ_ADDR_ADD_INDEX_STORE_IN_OPERAND:
     state->cpu->operand = read_mem(state, state->cpu->registers->PC - 1);
-    state->cpu->operand += state->cpu->registers->X;
+    state->cpu->operand += *state->cpu->index_reg;
     break;
+    
     // Fetch effective address low
   case FETCH_EFF_ADDR_LOW:
     state->cpu->low_addr_byte = read_mem(state, (uint16_t) state->cpu->operand);
@@ -664,10 +665,10 @@ void execute_next_action(nes_state *state) {
   case FETCH_ZP_PTR_ADDR_INC_PC:
     {
       state->cpu->operand = read_mem(state, state->cpu->registers->PC);
-      /* printf("operand: %02X, PC: %04X\n",       state->cpu->operand, state->cpu->registers->PC); */
       state->cpu->registers->PC++;
     }
     break;
+    
     // Increment memory
   case INC_MEMORY:
     {
@@ -677,6 +678,7 @@ void execute_next_action(nes_state *state) {
       if ((state->memory[addr]) & 0x80) { set_negative_flag(state); } else { clear_negative_flag(state); }
     }
     break;
+    
     // Decrement memory
   case DEC_MEMORY:
     {
@@ -687,16 +689,16 @@ void execute_next_action(nes_state *state) {
     }
         break;
 
-        // Fetch effective address high from PC+1, add Y to low byte of effective address, inc pc
+  // Fetch effective address high from PC+1, add index to low byte of effective address, inc pc
   case FETCH_EFF_ADDR_HIGH_ADD_INDEX_INC_PC:
     state->cpu->high_addr_byte = read_mem(state, (uint16_t) ((uint16_t) state->cpu->registers->PC));
     // Fix high address, one cycle early
     // Add a stall cycle if page boundary is crossed
-    if (((uint16_t)state->cpu->low_addr_byte + (uint16_t)*state->cpu->source_reg) > 0xFF) {
+    if (((uint16_t)state->cpu->low_addr_byte + (uint16_t)*state->cpu->index_reg) > 0xFF) {
 	state->cpu->high_addr_byte++;
 	add_action_to_queue(state, STALL_CYCLE);
     }
-    state->cpu->low_addr_byte += *state->cpu->source_reg;
+    state->cpu->low_addr_byte += *state->cpu->index_reg;
     state->cpu->registers->PC++;
     break;
 
@@ -705,7 +707,6 @@ void execute_next_action(nes_state *state) {
     {
 
 	uint16_t eff_addr = ((uint16_t) state->cpu->low_addr_byte) | (((uint16_t) state->cpu->high_addr_byte) << 8);
-	
 	uint8_t value = read_mem(state, eff_addr);
 	*state->cpu->destination_reg = value;
 	// Set flags for LDA
@@ -718,14 +719,15 @@ void execute_next_action(nes_state *state) {
   case FETCH_LOW_BYTE_ADDR_ZP:
     state->cpu->low_addr_byte = read_mem(state, state->cpu->operand);
     break;
-    // Fetch high byte of address from operand+1, add Y to low_addr
-  case FETCH_HIGH_BYTE_ADDR_ADD_Y:
+    
+    // Fetch high byte of address from operand+1, add index to low_addr
+  case FETCH_HIGH_BYTE_ADDR_ADD_INDEX:
     {
       state->cpu->high_addr_byte = read_mem(state, state->cpu->operand+1);
       // Add a stall cycle if page boundary crossed
       /* This penalty applies to calculated 16bit addresses that are of the type base16 + offset, where the final memory location (base16 + offset) is in a different page than base. base16 can either be the direct or indirect version, but it'll be 16bits either way (and offset will be the contents of either x or y) */
       uint16_t base = ((uint16_t) state->cpu->low_addr_byte) | (((uint16_t) state->cpu->high_addr_byte) << 8);
-      uint16_t offset = state->cpu->registers->Y;
+      uint16_t offset = *state->cpu->index_reg;
       if (((base & 0xFF) + offset) > 0xFF) {
         add_action_to_queue(state, STALL_CYCLE); // add a stall cycle
         // fix high_addr (one cycle early, but hell)
@@ -753,18 +755,18 @@ void execute_next_action(nes_state *state) {
     }
     break;
 
-        // AND read from effective address, "fix high byte" (write to destination_reg)
+  // AND read from effective address, "fix high byte" (write to destination_reg)
   case AND_READ_FROM_EFF_ADDR_FIX_HIGH_BYTE:
     {
-    uint16_t addr = ((uint16_t) state->cpu->low_addr_byte) | (((uint16_t) state->cpu->high_addr_byte) << 8);
-
-    uint8_t value = (*state->cpu->destination_reg) & read_mem(state, addr);
-      *state->cpu->destination_reg = value;
-    // Set flags for AND
-      if (value == 0) { set_zero_flag(state); } else { clear_zero_flag(state); }
-      if (value & 0x80) { set_negative_flag(state); } else { clear_negative_flag(state); }
+	uint16_t addr = ((uint16_t) state->cpu->low_addr_byte) | (((uint16_t) state->cpu->high_addr_byte) << 8);
+	uint8_t value = (*state->cpu->destination_reg) & read_mem(state, addr);
+	*state->cpu->destination_reg = value;
+	// Set flags for AND
+	if (value == 0) { set_zero_flag(state); } else { clear_zero_flag(state); }
+	if (value & 0x80) { set_negative_flag(state); } else { clear_negative_flag(state); }
     }
     break;
+    
     // EOR read from effective address, "fix high byte" (write to destination_reg)
   case EOR_READ_FROM_EFF_ADDR_FIX_HIGH_BYTE:
     {
@@ -815,6 +817,7 @@ void execute_next_action(nes_state *state) {
       if (res >= 0x80)  { set_negative_flag(state); } else { clear_negative_flag(state); }
     }
       break;
+      
     // SBC read from effective address, "fix high byte" (write to destination_reg)
   case SBC_READ_FROM_EFF_ADDR_FIX_HIGH_BYTE:
     {
@@ -889,6 +892,7 @@ void execute_next_action(nes_state *state) {
     clear_negative_flag(state);
     if (state->cpu->registers->ACC != 0) { clear_zero_flag(state); } else { set_zero_flag(state); }
     break;
+    
     // ASL A
   case ASL_ACC:
     if (state->cpu->registers->ACC & 0x80) { set_carry_flag(state); }
@@ -899,6 +903,7 @@ void execute_next_action(nes_state *state) {
     }
     if (state->cpu->registers->ACC != 0) { clear_zero_flag(state); } else { set_zero_flag(state); }
     break;
+    
   /*   // ROR A */
   /* case ROR_ACC: */
   /*   { */
@@ -926,6 +931,8 @@ void execute_next_action(nes_state *state) {
   /*     state->cpu->registers->ACC = newacc; */
   /*   } */
   /*   break; */
+
+    
     // LSR (reg and zero-page Memory)
   case LSR_SOURCE_REG:
     if (*state->cpu->source_reg & 0x1) { set_carry_flag(state); }
@@ -944,6 +951,7 @@ void execute_next_action(nes_state *state) {
     }
     if (*state->cpu->source_reg != 0) { clear_zero_flag(state); } else { set_zero_flag(state); }
     break;
+    
     // ROR source-reg (zeropage)
   case ROR_SOURCE_REG_ZP:
     {
@@ -957,6 +965,7 @@ void execute_next_action(nes_state *state) {
       *state->cpu->source_reg = newval;
     }
     break;
+    
     // ROL source_reg
   case ROL_SOURCE_REG:
     {
@@ -971,6 +980,7 @@ void execute_next_action(nes_state *state) {
       *state->cpu->source_reg = newacc;
     }
     break;
+    
     // LSR (memory)
   case LSR_MEMORY:
     {
@@ -984,6 +994,7 @@ void execute_next_action(nes_state *state) {
       state->memory[addr] = value;
     }
     break;
+    
     // ASL memory
   case ASL_MEMORY:
     {
@@ -999,6 +1010,7 @@ void execute_next_action(nes_state *state) {
       state->memory[addr] = value;
     }
     break;
+    
     // ROR Memory
   case ROR_MEMORY:
     {
@@ -1013,6 +1025,7 @@ void execute_next_action(nes_state *state) {
       state->memory[addr] = value;
     }
     break;
+    
     // ROL Memory
   case ROL_MEMORY:
     {
@@ -1028,17 +1041,11 @@ void execute_next_action(nes_state *state) {
       write_mem(state, addr, value);
     }
     break;
-
-  case LDY_ZEROPAGE_ADD_INDEX_X:
-      state->cpu->low_addr_byte += state->cpu->registers->X;
+    
+  case ZEROPAGE_ADD_INDEX:
+      state->cpu->low_addr_byte += *state->cpu->index_reg;
       state->cpu->high_addr_byte = 0;
       break;
-      
-  case LDX_ZEROPAGE_ADD_INDEX_Y:
-      state->cpu->low_addr_byte += state->cpu->registers->Y;
-      state->cpu->high_addr_byte = 0;
-      break;
-
     
   }
 
@@ -1063,7 +1070,7 @@ void add_instruction_to_queue(nes_state *state) {
     /* 2      PC       R  fetch pointer address, increment PC */
     add_action_to_queue(state, INC_PC); // increment PC, nowhere to store pointer
     /*   3    pointer    R  read from the address, add X to it */
-    add_action_to_queue(state, READ_ADDR_ADD_X_STORE_IN_OPERAND);
+    add_action_to_queue(state, READ_ADDR_ADD_INDEX_STORE_IN_OPERAND);
     /*   4   pointer+X   R  fetch effective address low */
     add_action_to_queue(state, FETCH_EFF_ADDR_LOW);
     /*   5  pointer+X+1  R  fetch effective address high */
@@ -1149,7 +1156,7 @@ void add_instruction_to_queue(nes_state *state) {
     add_action_to_queue(state, FETCH_LOW_BYTE_ADDR_ZP);
     /*       4   pointer+1   R  fetch effective address high, */
     /*                          add Y to low byte of effective address */
-    add_action_to_queue(state, FETCH_HIGH_BYTE_ADDR_ADD_Y);
+    add_action_to_queue(state, FETCH_HIGH_BYTE_ADDR_ADD_INDEX);
     /*       5   address+Y*  R  read from effective address, */
     /*                          fix high byte of effective address */
     add_action_to_queue(state, ORA_READ_FROM_EFF_ADDR_FIX_HIGH_BYTE);
@@ -1162,7 +1169,7 @@ void add_instruction_to_queue(nes_state *state) {
     state->cpu->high_addr_byte = 0x0;
     add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);      
         /* 3   address   R  read from address, add index register to it */
-    add_action_to_queue(state, LDY_ZEROPAGE_ADD_INDEX_X);
+    add_action_to_queue(state, ZEROPAGE_ADD_INDEX);
         /* 4  address+I* R  read from effective address */
     add_action_to_queue(state, ORA_MEMORY);
       break;
@@ -1173,7 +1180,7 @@ void add_instruction_to_queue(nes_state *state) {
         /* 2     PC      R  fetch address, increment PC */
       add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);
         /* 3   address   R  read from address, add index register X to it */
-      add_action_to_queue(state, LDY_ZEROPAGE_ADD_INDEX_X);
+      add_action_to_queue(state, ZEROPAGE_ADD_INDEX);
         /* 4  address+X* R  read from effective address */
       add_action_to_queue(state, STALL_CYCLE);
         /* 5  address+X* W  write the value back to effective address, */
@@ -1249,7 +1256,7 @@ void add_instruction_to_queue(nes_state *state) {
     /* 2      PC       R  fetch pointer address, increment PC */
     add_action_to_queue(state, INC_PC); // increment PC, nowhere to store pointer
     /*   3    pointer    R  read from the address, add X to it */
-    add_action_to_queue(state, READ_ADDR_ADD_X_STORE_IN_OPERAND);
+    add_action_to_queue(state, READ_ADDR_ADD_INDEX_STORE_IN_OPERAND);
     /*   4   pointer+X   R  fetch effective address low */
     add_action_to_queue(state, FETCH_EFF_ADDR_LOW);
     /*   5  pointer+X+1  R  fetch effective address high */
@@ -1359,7 +1366,7 @@ void add_instruction_to_queue(nes_state *state) {
     add_action_to_queue(state, FETCH_LOW_BYTE_ADDR_ZP);
   /*       4   pointer+1   R  fetch effective address high, */
   /*                          add Y to low byte of effective address */
-    add_action_to_queue(state, FETCH_HIGH_BYTE_ADDR_ADD_Y);
+    add_action_to_queue(state, FETCH_HIGH_BYTE_ADDR_ADD_INDEX);
   /*       5   address+Y*  R  read from effective address, */
   /*                          fix high byte of effective address */
     add_action_to_queue(state, AND_READ_FROM_EFF_ADDR_FIX_HIGH_BYTE);
@@ -1381,7 +1388,7 @@ void add_instruction_to_queue(nes_state *state) {
       state->cpu->high_addr_byte = 0x0;
       add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);      
       /* 3   address   R  read from address, add index register to it */
-      add_action_to_queue(state, LDY_ZEROPAGE_ADD_INDEX_X);
+      add_action_to_queue(state, ZEROPAGE_ADD_INDEX);
       /* 4  address+I* R  read from effective address */
       add_action_to_queue(state, AND_MEMORY);
       break;
@@ -1392,7 +1399,7 @@ void add_instruction_to_queue(nes_state *state) {
         /* 2     PC      R  fetch address, increment PC */
       add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);
         /* 3   address   R  read from address, add index register X to it */
-      add_action_to_queue(state, LDY_ZEROPAGE_ADD_INDEX_X);
+      add_action_to_queue(state, ZEROPAGE_ADD_INDEX);
         /* 4  address+X* R  read from effective address */
       add_action_to_queue(state, STALL_CYCLE);
         /* 5  address+X* W  write the value back to effective address, */
@@ -1477,7 +1484,7 @@ void add_instruction_to_queue(nes_state *state) {
     /* 2      PC       R  fetch pointer address, increment PC */
     add_action_to_queue(state, INC_PC); // increment PC, nowhere to store pointer
     /*   3    pointer    R  read from the address, add X to it */
-    add_action_to_queue(state, READ_ADDR_ADD_X_STORE_IN_OPERAND);
+    add_action_to_queue(state, READ_ADDR_ADD_INDEX_STORE_IN_OPERAND);
     /*   4   pointer+X   R  fetch effective address low */
     add_action_to_queue(state, FETCH_EFF_ADDR_LOW);
     /*   5  pointer+X+1  R  fetch effective address high */
@@ -1581,7 +1588,7 @@ void add_instruction_to_queue(nes_state *state) {
     add_action_to_queue(state, FETCH_LOW_BYTE_ADDR_ZP);
   /*       4   pointer+1   R  fetch effective address high, */
   /*                          add Y to low byte of effective address */
-    add_action_to_queue(state, FETCH_HIGH_BYTE_ADDR_ADD_Y);
+    add_action_to_queue(state, FETCH_HIGH_BYTE_ADDR_ADD_INDEX);
   /*       5   address+Y*  R  read from effective address, */
   /*                          fix high byte of effective address */
     add_action_to_queue(state, EOR_READ_FROM_EFF_ADDR_FIX_HIGH_BYTE);
@@ -1594,7 +1601,7 @@ void add_instruction_to_queue(nes_state *state) {
       state->cpu->high_addr_byte = 0x0;
       add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);      
       /* 3   address   R  read from address, add index register to it */
-      add_action_to_queue(state, LDY_ZEROPAGE_ADD_INDEX_X);
+      add_action_to_queue(state, ZEROPAGE_ADD_INDEX);
       /* 4  address+I* R  read from effective address */
       add_action_to_queue(state, EOR_MEMORY);
       break;
@@ -1606,7 +1613,7 @@ void add_instruction_to_queue(nes_state *state) {
         /* 2     PC      R  fetch address, increment PC */
       add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);
         /* 3   address   R  read from address, add index register X to it */
-      add_action_to_queue(state, LDY_ZEROPAGE_ADD_INDEX_X);
+      add_action_to_queue(state, ZEROPAGE_ADD_INDEX);
         /* 4  address+X* R  read from effective address */
       add_action_to_queue(state, STALL_CYCLE);
         /* 5  address+X* W  write the value back to effective address, */
@@ -1638,6 +1645,24 @@ void add_instruction_to_queue(nes_state *state) {
       
       break;
 
+    // EOR absolute, X
+  case 0x5D:
+        /* 2     PC      R  fetch low byte of address, increment PC */
+        /* 3     PC      R  fetch high byte of address, */
+        /*                  add index register to low address byte, */
+        /*                  increment PC */
+        /* 4  address+I* R  read from effective address, */
+        /*                  fix the high byte of effective address */
+        /* 5+ address+I  R  re-read from effective address */
+      state->cpu->destination_reg = &state->cpu->registers->ACC;
+      state->cpu->source_reg = &state->cpu->registers->X;
+    
+      add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);
+      add_action_to_queue(state, FETCH_EFF_ADDR_HIGH_ADD_INDEX_INC_PC);
+      add_action_to_queue(state, EOR_MEMORY);
+      break;
+
+      
     // RTS - Return from subroutine
   case 0x60:
     /*  #  address R/W description */
@@ -1679,7 +1704,7 @@ add_action_to_queue(state, PULL_PCL_FROM_STACK_INC_SP);
     /* 2      PC       R  fetch pointer address, increment PC */
     add_action_to_queue(state, INC_PC); // increment PC, nowhere to store pointer
     /*   3    pointer    R  read from the address, add X to it */
-    add_action_to_queue(state, READ_ADDR_ADD_X_STORE_IN_OPERAND);
+    add_action_to_queue(state, READ_ADDR_ADD_INDEX_STORE_IN_OPERAND);
     /*   4   pointer+X   R  fetch effective address low */
     add_action_to_queue(state, FETCH_EFF_ADDR_LOW);
     /*   5  pointer+X+1  R  fetch effective address high */
@@ -1787,7 +1812,7 @@ add_action_to_queue(state, PULL_PCL_FROM_STACK_INC_SP);
     add_action_to_queue(state, FETCH_LOW_BYTE_ADDR_ZP);
   /*       4   pointer+1   R  fetch effective address high, */
   /*                          add Y to low byte of effective address */
-    add_action_to_queue(state, FETCH_HIGH_BYTE_ADDR_ADD_Y);
+    add_action_to_queue(state, FETCH_HIGH_BYTE_ADDR_ADD_INDEX);
   /*       5   address+Y*  R  read from effective address, */
   /*                          fix high byte of effective address */
     add_action_to_queue(state, ADC_READ_FROM_EFF_ADDR_FIX_HIGH_BYTE);
@@ -1801,7 +1826,7 @@ add_action_to_queue(state, PULL_PCL_FROM_STACK_INC_SP);
       state->cpu->high_addr_byte = 0x0;
       add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);      
       /* 3   address   R  read from address, add index register to it */
-      add_action_to_queue(state, LDY_ZEROPAGE_ADD_INDEX_X);
+      add_action_to_queue(state, ZEROPAGE_ADD_INDEX);
       /* 4  address+I* R  read from effective address */
       add_action_to_queue(state, ADC_MEMORY);
       break;
@@ -1812,7 +1837,7 @@ add_action_to_queue(state, PULL_PCL_FROM_STACK_INC_SP);
         /* 2     PC      R  fetch address, increment PC */
       add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);
         /* 3   address   R  read from address, add index register X to it */
-      add_action_to_queue(state, LDY_ZEROPAGE_ADD_INDEX_X);
+      add_action_to_queue(state, ZEROPAGE_ADD_INDEX);
         /* 4  address+X* R  read from effective address */
       add_action_to_queue(state, STALL_CYCLE);
         /* 5  address+X* W  write the value back to effective address, */
@@ -1849,7 +1874,25 @@ add_action_to_queue(state, PULL_PCL_FROM_STACK_INC_SP);
       add_action_to_queue(state, ADC_MEMORY);
       
       break;
+
+    // ADC absolute, X
+  case 0x7D:
+        /* 2     PC      R  fetch low byte of address, increment PC */
+        /* 3     PC      R  fetch high byte of address, */
+        /*                  add index register to low address byte, */
+        /*                  increment PC */
+        /* 4  address+I* R  read from effective address, */
+        /*                  fix the high byte of effective address */
+        /* 5+ address+I  R  re-read from effective address */
+      state->cpu->destination_reg = &state->cpu->registers->ACC;
+      state->cpu->source_reg = &state->cpu->registers->X;
     
+      add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);
+      add_action_to_queue(state, FETCH_EFF_ADDR_HIGH_ADD_INDEX_INC_PC);
+      add_action_to_queue(state, ADC_MEMORY);
+      break;
+
+      
     // STA indirect, X (indexed indirect)
   case 0x81:
     /*        2      PC       R  fetch pointer address, increment PC */
@@ -1865,7 +1908,7 @@ add_action_to_queue(state, PULL_PCL_FROM_STACK_INC_SP);
     /* 2      PC       R  fetch pointer address, increment PC */
     add_action_to_queue(state, INC_PC); // increment PC, nowhere to store pointer
     /*   3    pointer    R  read from the address, add X to it */
-    add_action_to_queue(state, READ_ADDR_ADD_X_STORE_IN_OPERAND);
+    add_action_to_queue(state, READ_ADDR_ADD_INDEX_STORE_IN_OPERAND);
     /*   4   pointer+X   R  fetch effective address low */
     add_action_to_queue(state, FETCH_EFF_ADDR_LOW);
     /*   5  pointer+X+1  R  fetch effective address high */
@@ -1907,6 +1950,7 @@ add_action_to_queue(state, PULL_PCL_FROM_STACK_INC_SP);
     /*       4  address  W  write register to effective address */
     add_action_to_queue(state, WRITE_REG_TO_EFF_ADDR_NON_ZEROPAGE);
     break;
+
     // STA Absolute
   case 0x8D:
     state->cpu->source_reg = &state->cpu->registers->ACC;
@@ -1956,7 +2000,7 @@ add_action_to_queue(state, PULL_PCL_FROM_STACK_INC_SP);
     /*      4   pointer+1   R  fetch effective address high, */
    /*                         add Y to low byte of effective address */
 
-    add_action_to_queue(state, FETCH_HIGH_BYTE_ADDR_ADD_Y);
+    add_action_to_queue(state, FETCH_HIGH_BYTE_ADDR_ADD_INDEX);
     add_action_to_queue(state, STALL_CYCLE);
     /*      5   address+Y*  R  read from effective address, */
    /*                         fix high byte of effective address */
@@ -1996,7 +2040,7 @@ add_action_to_queue(state, PULL_PCL_FROM_STACK_INC_SP);
        /*  2     PC      R  fetch address, increment PC */
       add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);
        /*  3   address   R  read from address, add index register to it */
-      add_action_to_queue(state, LDY_ZEROPAGE_ADD_INDEX_X);
+      add_action_to_queue(state, ZEROPAGE_ADD_INDEX);
        /*  4  address+I* R  Write to effective address */
       add_action_to_queue(state, WRITE_REG_TO_EFF_ADDR_ZEROPAGE);
        /* Notes: I denotes either index register (X or Y). */
@@ -2017,7 +2061,7 @@ add_action_to_queue(state, PULL_PCL_FROM_STACK_INC_SP);
        /*  2     PC      R  fetch address, increment PC */
       add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);
        /*  3   address   R  read from address, add index register to it */
-      add_action_to_queue(state, LDY_ZEROPAGE_ADD_INDEX_X);
+      add_action_to_queue(state, ZEROPAGE_ADD_INDEX);
        /*  4  address+I* R  Write to effective address */
       add_action_to_queue(state, WRITE_REG_TO_EFF_ADDR_ZEROPAGE);
        /* Notes: I denotes either index register (X or Y). */
@@ -2036,7 +2080,7 @@ add_action_to_queue(state, PULL_PCL_FROM_STACK_INC_SP);
        /*  2     PC      R  fetch address, increment PC */
       add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);
        /*  3   address   R  read from address, add index register to it */
-      add_action_to_queue(state, LDX_ZEROPAGE_ADD_INDEX_Y);
+      add_action_to_queue(state, ZEROPAGE_ADD_INDEX);
        /*  4  address+I* R  Write to effective address */
       add_action_to_queue(state, WRITE_REG_TO_EFF_ADDR_ZEROPAGE);
        /* Notes: I denotes either index register (X or Y). */
@@ -2081,21 +2125,41 @@ add_action_to_queue(state, PULL_PCL_FROM_STACK_INC_SP);
     state->cpu->destination_reg = &state->cpu->registers->SP;
     add_action_to_queue(state, COPY_SOURCE_REG_TO_DEST_REG_NO_FLAGS);
     break;
+
+    // STA Absolute, X
+  case 0x9D:
+       /*  2     PC      R  fetch low byte of address, increment PC */
+       /*  3     PC      R  fetch high byte of address, add index register to low address byte, increment PC */
+       /*  4  address+I* R  read from effective address, fix the high byte of effective address */
+       /*  5  address+I  W  write to effective address */
+       /* Notes: I denotes either index register (X or Y). */
+      
+      state->cpu->source_reg = &state->cpu->registers->ACC;
+      state->cpu->index_reg = &state->cpu->registers->X;
+      add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);
+      add_action_to_queue(state, FETCH_EFF_ADDR_HIGH_ADD_INDEX_INC_PC);
+      add_action_to_queue(state, STA_READ_FROM_EFF_ADDR_FIX_HIGH_BYTE);
+      add_action_to_queue(state, WRITE_REG_TO_EFF_ADDR_NON_ZEROPAGE);
+      break;
+
+    
     // LDY Immediate
   case 0xA0:
     state->cpu->destination_reg = &state->cpu->registers->Y;
     add_action_to_queue(state, 4);
     break;
+    
     // LDA indirect,x
   case 0xA1:
     state->cpu->high_addr_byte = 0x0;
     state->cpu->low_addr_byte = 0x0;
     state->cpu->source_reg = &state->cpu->registers->ACC;
     state->cpu->destination_reg = &state->cpu->registers->ACC;
+    state->cpu->index_reg = &state->cpu->registers->X;
     /* 2      PC       R  fetch pointer address, increment PC */
     add_action_to_queue(state, INC_PC); // increment PC, nowhere to store pointer
     /*   3    pointer    R  read from the address, add X to it */
-    add_action_to_queue(state, READ_ADDR_ADD_X_STORE_IN_OPERAND);
+    add_action_to_queue(state, READ_ADDR_ADD_INDEX_STORE_IN_OPERAND);
     /*   4   pointer+X   R  fetch effective address low */
     add_action_to_queue(state, FETCH_EFF_ADDR_LOW);
     /*   5  pointer+X+1  R  fetch effective address high */
@@ -2109,6 +2173,7 @@ add_action_to_queue(state, PULL_PCL_FROM_STACK_INC_SP);
     state->cpu->destination_reg = &state->cpu->registers->X;
     add_action_to_queue(state, 4);
     break;
+    
     // LDY Zero page
   case 0xA4:
     // Clear out high addr byte, to ensure zero-page read
@@ -2120,6 +2185,7 @@ add_action_to_queue(state, PULL_PCL_FROM_STACK_INC_SP);
 
     add_action_to_queue(state, READ_EFF_ADDR_STORE_IN_REG_AFFECT_NZ_FLAGS);
     break;
+    
     // LDA Zero page
   case 0xA5:
     // Clear out high addr byte, to ensure zero-page read
@@ -2131,6 +2197,7 @@ add_action_to_queue(state, PULL_PCL_FROM_STACK_INC_SP);
 
     add_action_to_queue(state, READ_EFF_ADDR_STORE_IN_REG_AFFECT_NZ_FLAGS);
     break;
+    
     // LDX Zero page
   case 0xA6:
     // Clear out high addr byte, to ensure zero-page read
@@ -2154,12 +2221,14 @@ add_action_to_queue(state, PULL_PCL_FROM_STACK_INC_SP);
     state->cpu->destination_reg = &state->cpu->registers->ACC;
     add_action_to_queue(state, 4);
     break;
+    
     // TAX
   case 0xAA:
     state->cpu->source_reg = &state->cpu->registers->ACC;
     state->cpu->destination_reg = &state->cpu->registers->X;
     add_action_to_queue(state, COPY_SOURCE_REG_TO_DEST_REG_AFFECT_NZ_FLAGS);
     break;
+    
     // LDY Absolute
   case 0xAC:
     state->cpu->destination_reg = &state->cpu->registers->Y;
@@ -2168,6 +2237,7 @@ add_action_to_queue(state, PULL_PCL_FROM_STACK_INC_SP);
     // Read from effective address, copy to register
     add_action_to_queue(state, READ_EFF_ADDR_STORE_IN_REG_AFFECT_NZ_FLAGS);
     break;
+    
     // LDA Absolute
   case 0xAD:
     state->cpu->destination_reg = &state->cpu->registers->ACC;
@@ -2176,6 +2246,7 @@ add_action_to_queue(state, PULL_PCL_FROM_STACK_INC_SP);
     // Read from effective address, copy to register
     add_action_to_queue(state, READ_EFF_ADDR_STORE_IN_REG_AFFECT_NZ_FLAGS);
     break;
+    
     // LDX Absolute
   case 0xAE:
     state->cpu->destination_reg = &state->cpu->registers->X;
@@ -2184,16 +2255,19 @@ add_action_to_queue(state, PULL_PCL_FROM_STACK_INC_SP);
     // Read from effective address, copy to register
     add_action_to_queue(state, READ_EFF_ADDR_STORE_IN_REG_AFFECT_NZ_FLAGS);
     break;
+    
     // TSX - Transfer SP to X
   case 0xBA:
     state->cpu->source_reg = &state->cpu->registers->SP;
     state->cpu->destination_reg = &state->cpu->registers->X;
     add_action_to_queue(state, COPY_SOURCE_REG_TO_DEST_REG_AFFECT_NZ_FLAGS);
     break;
+    
     // CPY Immediate
   case 0xC0:
     add_action_to_queue(state, CPY_IMM_INC_PC);
     break;
+    
     // BCS
   case 0xB0:
     add_action_to_queue(state, FETCH_OPERAND_INC_PC);
@@ -2206,6 +2280,7 @@ add_action_to_queue(state, PULL_PCL_FROM_STACK_INC_SP);
     // LDA indirect-indexed, Y
   case 0xB1:
     state->cpu->destination_reg = &state->cpu->registers->ACC;
+    state->cpu->index_reg = &state->cpu->registers->Y;
   /* #    address   R/W description */
   /*      --- ----------- --- ------------------------------------------ */
   /*       1      PC       R  fetch opcode, increment PC */
@@ -2215,7 +2290,7 @@ add_action_to_queue(state, PULL_PCL_FROM_STACK_INC_SP);
     add_action_to_queue(state, FETCH_LOW_BYTE_ADDR_ZP);
   /*       4   pointer+1   R  fetch effective address high, */
   /*                          add Y to low byte of effective address */
-    add_action_to_queue(state, FETCH_HIGH_BYTE_ADDR_ADD_Y);
+    add_action_to_queue(state, FETCH_HIGH_BYTE_ADDR_ADD_INDEX);
   /*       5   address+Y*  R  read from effective address, */
   /*                          fix high byte of effective address */
     add_action_to_queue(state, READ_FROM_EFF_ADDR_FIX_HIGH_BYTE);
@@ -2230,14 +2305,16 @@ add_action_to_queue(state, PULL_PCL_FROM_STACK_INC_SP);
   /*             + This cycle will be executed only if the effective address */
   /*               was invalid during cycle #5, i.e. page boundary was crossed. */
     break;
+    
 // LDY zero page, X
   case 0xB4:
-      state->cpu->source_reg = &state->cpu->registers->X;
+      state->cpu->index_reg = &state->cpu->registers->X;
+      /* state->cpu->source_reg = &state->cpu->registers->X; */
       state->cpu->destination_reg = &state->cpu->registers->Y;
        /*  2     PC      R  fetch address, increment PC */
       add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);
        /*  3   address   R  read from address, add index register to it */
-      add_action_to_queue(state, LDY_ZEROPAGE_ADD_INDEX_X);
+      add_action_to_queue(state, ZEROPAGE_ADD_INDEX);
        /*  4  address+I* R  read from effective address */
       add_action_to_queue(state, READ_EFF_ADDR_STORE_IN_REG_AFFECT_NZ_FLAGS);
        /* Notes: I denotes either index register (X or Y). */
@@ -2247,34 +2324,34 @@ add_action_to_queue(state, PULL_PCL_FROM_STACK_INC_SP);
 
       break;
 
-
-
 // LDA zero page, X
   case 0xB5:
-      state->cpu->source_reg = &state->cpu->registers->X;
+      state->cpu->index_reg = &state->cpu->registers->X;
+      
+      /* state->cpu->source_reg = &state->cpu->registers->X; */
       state->cpu->destination_reg = &state->cpu->registers->ACC;
        /*  2     PC      R  fetch address, increment PC */
       add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);
        /*  3   address   R  read from address, add index register to it */
-      add_action_to_queue(state, LDY_ZEROPAGE_ADD_INDEX_X);
+      add_action_to_queue(state, ZEROPAGE_ADD_INDEX);
        /*  4  address+I* R  read from effective address */
       add_action_to_queue(state, READ_EFF_ADDR_STORE_IN_REG_AFFECT_NZ_FLAGS);
        /* Notes: I denotes either index register (X or Y). */
-
        /*        * The high byte of the effective address is always zero, */
        /*          i.e. page boundary crossings are not handled. */
-
       break;
 
 
 // LDX zero page, Y
   case 0xB6:
-      state->cpu->source_reg = &state->cpu->registers->Y;
+      state->cpu->index_reg = &state->cpu->registers->Y;
+      
+      /* state->cpu->source_reg = &state->cpu->registers->Y; */
       state->cpu->destination_reg = &state->cpu->registers->X;
        /*  2     PC      R  fetch address, increment PC */
       add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);
        /*  3   address   R  read from address, add index register to it */
-      add_action_to_queue(state, LDX_ZEROPAGE_ADD_INDEX_Y);
+      add_action_to_queue(state, ZEROPAGE_ADD_INDEX);
        /*  4  address+I* R  read from effective address */
       add_action_to_queue(state, READ_EFF_ADDR_STORE_IN_REG_AFFECT_NZ_FLAGS);
        /* Notes: I denotes either index register (X or Y). */
@@ -2290,10 +2367,13 @@ add_action_to_queue(state, PULL_PCL_FROM_STACK_INC_SP);
   case 0xB8:
     add_action_to_queue(state, CLEAR_OVERFLOW_FLAG);
     break;
+    
 // LDA Indexed Absolute Y
   case 0xB9:
+      state->cpu->index_reg = &state->cpu->registers->Y;
+      
       state->cpu->destination_reg = &state->cpu->registers->ACC;
-      state->cpu->source_reg = &state->cpu->registers->Y;
+      /* state->cpu->source_reg = &state->cpu->registers->Y; */
  /* 2     PC      R  fetch low byte of address, increment PC */
       add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);      
  /*        3     PC      R  fetch high byte of address, add index register to low address byte, increment PC */
@@ -2312,8 +2392,9 @@ add_action_to_queue(state, PULL_PCL_FROM_STACK_INC_SP);
 
 // LDY Indexed Absolute X
   case 0xBC:
+      state->cpu->index_reg = &state->cpu->registers->X;      
       state->cpu->destination_reg = &state->cpu->registers->Y;
-      state->cpu->source_reg = &state->cpu->registers->X;
+      /* state->cpu->source_reg = &state->cpu->registers->X; */
  /* 2     PC      R  fetch low byte of address, increment PC */
       add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);      
  /*        3     PC      R  fetch high byte of address, add index register to low address byte, increment PC */
@@ -2327,9 +2408,26 @@ add_action_to_queue(state, PULL_PCL_FROM_STACK_INC_SP);
  /*                at this time, i.e. it may be smaller by $100. */
  /*              + This cycle will be executed only if the effective address */
  /*                was invalid during cycle #4, i.e. page boundary was crossed. */      
-
-
       break;
+
+    // LDA absolute, X
+  case 0xBD:
+        /* 2     PC      R  fetch low byte of address, increment PC */
+        /* 3     PC      R  fetch high byte of address, */
+        /*                  add index register to low address byte, */
+        /*                  increment PC */
+        /* 4  address+I* R  read from effective address, */
+        /*                  fix the high byte of effective address */
+        /* 5+ address+I  R  re-read from effective address */
+      state->cpu->destination_reg = &state->cpu->registers->ACC;
+      /* state->cpu->source_reg = &state->cpu->registers->X; */
+      state->cpu->index_reg = &state->cpu->registers->X;
+      add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);
+      add_action_to_queue(state, FETCH_EFF_ADDR_HIGH_ADD_INDEX_INC_PC);
+      add_action_to_queue(state, READ_EFF_ADDR_STORE_IN_REG_AFFECT_NZ_FLAGS);
+      break;
+
+      
     // CMP indexed indirect
   case 0xC1:
     /*   2      PC       R  fetch pointer address, increment PC */
@@ -2338,21 +2436,23 @@ add_action_to_queue(state, PULL_PCL_FROM_STACK_INC_SP);
     /*   5  pointer+X+1  R  fetch effective address high */
     /*   6    address    R  read from effective address */
 
-    state->cpu->high_addr_byte = 0x0;
-    state->cpu->low_addr_byte = 0x0;
-    //    state->cpu->source_reg = &state->cpu->registers->ACC;
-    state->cpu->destination_reg = &state->cpu->registers->ACC;
-    /* 2      PC       R  fetch pointer address, increment PC */
-    add_action_to_queue(state, INC_PC); // increment PC, nowhere to store pointer
-    /*   3    pointer    R  read from the address, add X to it */
-    add_action_to_queue(state, READ_ADDR_ADD_X_STORE_IN_OPERAND);
-    /*   4   pointer+X   R  fetch effective address low */
-    add_action_to_queue(state, FETCH_EFF_ADDR_LOW);
-    /*   5  pointer+X+1  R  fetch effective address high */
-    add_action_to_queue(state, FETCH_EFF_ADDR_HIGH);
-    /*   6    address    W  write ACC to effective address */
-    add_action_to_queue(state, CMP_CPX_CPY_MEMORY);
+      state->cpu->index_reg = &state->cpu->registers->X;
+      state->cpu->high_addr_byte = 0x0;
+      state->cpu->low_addr_byte = 0x0;
+      //    state->cpu->source_reg = &state->cpu->registers->ACC;
+      state->cpu->destination_reg = &state->cpu->registers->ACC;
+      /* 2      PC       R  fetch pointer address, increment PC */
+      add_action_to_queue(state, INC_PC); // increment PC, nowhere to store pointer
+      /*   3    pointer    R  read from the address, add X to it */
+      add_action_to_queue(state, READ_ADDR_ADD_INDEX_STORE_IN_OPERAND);
+      /*   4   pointer+X   R  fetch effective address low */
+      add_action_to_queue(state, FETCH_EFF_ADDR_LOW);
+      /*   5  pointer+X+1  R  fetch effective address high */
+      add_action_to_queue(state, FETCH_EFF_ADDR_HIGH);
+      /*   6    address    W  write ACC to effective address */
+      add_action_to_queue(state, CMP_CPX_CPY_MEMORY);
     break;
+    
     // CPY zeropage
   case 0xC4:
     // Clear out high addr byte, to ensure zero-page read
@@ -2373,6 +2473,7 @@ add_action_to_queue(state, PULL_PCL_FROM_STACK_INC_SP);
     /*       3  address  R  read from effective address */
     add_action_to_queue(state, CMP_CPX_CPY_MEMORY);
     break;
+    
     // DEC Zeropage
   case 0xC6:
     state->cpu->high_addr_byte = 0x0;
@@ -2419,6 +2520,7 @@ add_action_to_queue(state, PULL_PCL_FROM_STACK_INC_SP);
     // Read from effective address, copy to register
     add_action_to_queue(state, CMP_CPX_CPY_MEMORY);
     break;
+    
     // DEC Absolute
   case 0xCE:
  /* 2    PC     R  fetch low byte of address, increment PC */
@@ -2444,20 +2546,21 @@ add_action_to_queue(state, PULL_PCL_FROM_STACK_INC_SP);
 
     // CMP indirect-indexed, Y
   case 0xD1:
-    state->cpu->destination_reg = &state->cpu->registers->ACC;
-  /* #    address   R/W description */
-  /*      --- ----------- --- ------------------------------------------ */
-  /*       1      PC       R  fetch opcode, increment PC */
-  /*       2      PC       R  fetch pointer address, increment PC */
-    add_action_to_queue(state, FETCH_ZP_PTR_ADDR_INC_PC);
-  /*       3    pointer    R  fetch effective address low */
-    add_action_to_queue(state, FETCH_LOW_BYTE_ADDR_ZP);
-  /*       4   pointer+1   R  fetch effective address high, */
-  /*                          add Y to low byte of effective address */
-    add_action_to_queue(state, FETCH_HIGH_BYTE_ADDR_ADD_Y);
-  /*       5   address+Y*  R  read from effective address, */
-  /*                          fix high byte of effective address */
-    add_action_to_queue(state, CMP_READ_FROM_EFF_ADDR_FIX_HIGH_BYTE);
+      state->cpu->index_reg = &state->cpu->registers->Y;
+      state->cpu->destination_reg = &state->cpu->registers->ACC;
+      /* #    address   R/W description */
+      /*      --- ----------- --- ------------------------------------------ */
+      /*       1      PC       R  fetch opcode, increment PC */
+      /*       2      PC       R  fetch pointer address, increment PC */
+      add_action_to_queue(state, FETCH_ZP_PTR_ADDR_INC_PC);
+      /*       3    pointer    R  fetch effective address low */
+      add_action_to_queue(state, FETCH_LOW_BYTE_ADDR_ZP);
+      /*       4   pointer+1   R  fetch effective address high, */
+      /*                          add Y to low byte of effective address */
+      add_action_to_queue(state, FETCH_HIGH_BYTE_ADDR_ADD_INDEX);
+      /*       5   address+Y*  R  read from effective address, */
+      /*                          fix high byte of effective address */
+      add_action_to_queue(state, CMP_READ_FROM_EFF_ADDR_FIX_HIGH_BYTE);
   /*       6+  address+Y   R  read from effective address */
     // ^Will be added in 313 if necessary
     break;
@@ -2465,21 +2568,23 @@ add_action_to_queue(state, PULL_PCL_FROM_STACK_INC_SP);
   // CMP zeropage, X
   case 0xD5:
       /* 2     PC      R  fetch address, increment PC */
+      state->cpu->index_reg = &state->cpu->registers->X;      
       state->cpu->high_addr_byte = 0x0;
       add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);      
       /* 3   address   R  read from address, add index register to it */
-      add_action_to_queue(state, LDY_ZEROPAGE_ADD_INDEX_X);
+      add_action_to_queue(state, ZEROPAGE_ADD_INDEX);
       /* 4  address+I* R  read from effective address */
       add_action_to_queue(state, CMP_MEMORY);
       break;
 
 // DEC zero page, X
   case 0xD6:
+      state->cpu->index_reg = &state->cpu->registers->X;      
       state->cpu->high_addr_byte = 0;
         /* 2     PC      R  fetch address, increment PC */
       add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);
         /* 3   address   R  read from address, add index register X to it */
-      add_action_to_queue(state, LDY_ZEROPAGE_ADD_INDEX_X);
+      add_action_to_queue(state, ZEROPAGE_ADD_INDEX);
         /* 4  address+X* R  read from effective address */
       add_action_to_queue(state, STALL_CYCLE);
         /* 5  address+X* W  write the value back to effective address, */
@@ -2507,21 +2612,38 @@ add_action_to_queue(state, PULL_PCL_FROM_STACK_INC_SP);
         /*                  fix the high byte of effective address */
         /* 5+ address+I  R  re-read from effective address */
       state->cpu->destination_reg = &state->cpu->registers->ACC;
-      state->cpu->source_reg = &state->cpu->registers->Y;
-    
+      /* state->cpu->source_reg = &state->cpu->registers->Y; */
+      state->cpu->index_reg = &state->cpu->registers->Y;          
       add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);
       add_action_to_queue(state, FETCH_EFF_ADDR_HIGH_ADD_INDEX_INC_PC);
       
       add_action_to_queue(state, CMP_MEMORY);
-      
       break;
     
+    // CMP absolute, X
+  case 0xDD:
+        /* 2     PC      R  fetch low byte of address, increment PC */
+        /* 3     PC      R  fetch high byte of address, */
+        /*                  add index register to low address byte, */
+        /*                  increment PC */
+        /* 4  address+I* R  read from effective address, */
+        /*                  fix the high byte of effective address */
+        /* 5+ address+I  R  re-read from effective address */
+      state->cpu->destination_reg = &state->cpu->registers->ACC;
+      /* state->cpu->source_reg = &state->cpu->registers->X; */
+      state->cpu->index_reg = &state->cpu->registers->X;
+      
+      add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);
+      add_action_to_queue(state, FETCH_EFF_ADDR_HIGH_ADD_INDEX_INC_PC);
+      add_action_to_queue(state, CMP_MEMORY);
+      break;
     
     
     // CPX Immediate
   case 0xE0:
     add_action_to_queue(state, CPX_IMM_INC_PC);
     break;
+    
     // SBC indexed indirect
   case 0xE1:
     /*   2      PC       R  fetch pointer address, increment PC */
@@ -2530,21 +2652,23 @@ add_action_to_queue(state, PULL_PCL_FROM_STACK_INC_SP);
     /*   5  pointer+X+1  R  fetch effective address high */
     /*   6    address    R  read from effective address */
 
-    state->cpu->high_addr_byte = 0x0;
-    state->cpu->low_addr_byte = 0x0;
-    //    state->cpu->source_reg = &state->cpu->registers->ACC;
-    state->cpu->destination_reg = &state->cpu->registers->ACC;
-    /* 2      PC       R  fetch pointer address, increment PC */
-    add_action_to_queue(state, INC_PC); // increment PC, nowhere to store pointer
-    /*   3    pointer    R  read from the address, add X to it */
-    add_action_to_queue(state, READ_ADDR_ADD_X_STORE_IN_OPERAND);
-    /*   4   pointer+X   R  fetch effective address low */
-    add_action_to_queue(state, FETCH_EFF_ADDR_LOW);
-    /*   5  pointer+X+1  R  fetch effective address high */
-    add_action_to_queue(state, FETCH_EFF_ADDR_HIGH);
-    /*   6    address    W  write ACC to effective address */
-    add_action_to_queue(state, SBC_MEMORY);
+      state->cpu->high_addr_byte = 0x0;
+      state->cpu->low_addr_byte = 0x0;
+      //    state->cpu->source_reg = &state->cpu->registers->ACC;
+      state->cpu->destination_reg = &state->cpu->registers->ACC;
+      state->cpu->index_reg = &state->cpu->registers->X;    
+      /* 2      PC       R  fetch pointer address, increment PC */
+      add_action_to_queue(state, INC_PC); // increment PC, nowhere to store pointer
+      /*   3    pointer    R  read from the address, add X to it */
+      add_action_to_queue(state, READ_ADDR_ADD_INDEX_STORE_IN_OPERAND);
+      /*   4   pointer+X   R  fetch effective address low */
+      add_action_to_queue(state, FETCH_EFF_ADDR_LOW);
+      /*   5  pointer+X+1  R  fetch effective address high */
+      add_action_to_queue(state, FETCH_EFF_ADDR_HIGH);
+      /*   6    address    W  write ACC to effective address */
+      add_action_to_queue(state, SBC_MEMORY);
     break;
+    
     // CPX zeropage
   case 0xE4:
     // Clear out high addr byte, to ensure zero-page read
@@ -2555,6 +2679,7 @@ add_action_to_queue(state, PULL_PCL_FROM_STACK_INC_SP);
     /*       3  address  R  read from effective address */
     add_action_to_queue(state, CMP_CPX_CPY_MEMORY);
     break;
+    
     // SBC zeropage
   case 0xE5:
     // Clear out high addr byte, to ensure zero-page read
@@ -2565,6 +2690,7 @@ add_action_to_queue(state, PULL_PCL_FROM_STACK_INC_SP);
     /*       3  address  R  read from effective address */
     add_action_to_queue(state, SBC_MEMORY);
     break;
+    
     // INC Zeropage
   case 0xE6:
     state->cpu->high_addr_byte = 0x0;
@@ -2586,18 +2712,22 @@ add_action_to_queue(state, PULL_PCL_FROM_STACK_INC_SP);
     state->cpu->source_reg = &state->cpu->registers->X;
     add_action_to_queue(state, INC_SOURCE_REG);
     break;
+    
     // SBC Immediate
   case 0xE9:
     add_action_to_queue(state, SBC_IMM_INC_PC);
     break;
+    
     // NOP
   case 0xEA:
-    add_action_to_queue(state, 0);
+    add_action_to_queue(state, STALL_CYCLE);
     break;
+    
 // SBC Immediate (Illegal opcode)
   case 0xEB:
     add_action_to_queue(state, SBC_IMM_INC_PC);
     break;
+    
     // CPX Absolute
   case 0xEC:
     state->cpu->source_reg = &state->cpu->registers->X;
@@ -2606,6 +2736,7 @@ add_action_to_queue(state, PULL_PCL_FROM_STACK_INC_SP);
     // Read from effective address, copy to register
     add_action_to_queue(state, CMP_CPX_CPY_MEMORY);
     break;
+    
     // SBC Absolute
   case 0xED:
     state->cpu->source_reg = &state->cpu->registers->ACC;
@@ -2614,6 +2745,7 @@ add_action_to_queue(state, PULL_PCL_FROM_STACK_INC_SP);
     // Read from effective address, copy to register
     add_action_to_queue(state, SBC_MEMORY);
     break;
+    
     // INC Absolute
   case 0xEE:
  /* 2    PC     R  fetch low byte of address, increment PC */
@@ -2628,6 +2760,7 @@ add_action_to_queue(state, PULL_PCL_FROM_STACK_INC_SP);
  /*        6  address  W  write the new value to effective address */
     add_action_to_queue(state, INC_MEMORY);
     break;
+    
     // BEQ
   case 0xF0:
     add_action_to_queue(state, FETCH_OPERAND_INC_PC);
@@ -2639,31 +2772,33 @@ add_action_to_queue(state, PULL_PCL_FROM_STACK_INC_SP);
 
     // SBC indirect-indexed, Y
   case 0xF1:
-    state->cpu->destination_reg = &state->cpu->registers->ACC;
-  /* #    address   R/W description */
-  /*      --- ----------- --- ------------------------------------------ */
-  /*       1      PC       R  fetch opcode, increment PC */
-  /*       2      PC       R  fetch pointer address, increment PC */
-    add_action_to_queue(state, FETCH_ZP_PTR_ADDR_INC_PC);
-  /*       3    pointer    R  fetch effective address low */
-    add_action_to_queue(state, FETCH_LOW_BYTE_ADDR_ZP);
-  /*       4   pointer+1   R  fetch effective address high, */
-  /*                          add Y to low byte of effective address */
-    add_action_to_queue(state, FETCH_HIGH_BYTE_ADDR_ADD_Y);
-  /*       5   address+Y*  R  read from effective address, */
-  /*                          fix high byte of effective address */
-    add_action_to_queue(state, SBC_READ_FROM_EFF_ADDR_FIX_HIGH_BYTE);
-  /*       6+  address+Y   R  read from effective address */
-    // ^Will be added in 313 if necessary
+      state->cpu->index_reg = &state->cpu->registers->Y;      
+      state->cpu->destination_reg = &state->cpu->registers->ACC;
+      /* #    address   R/W description */
+      /*      --- ----------- --- ------------------------------------------ */
+      /*       1      PC       R  fetch opcode, increment PC */
+      /*       2      PC       R  fetch pointer address, increment PC */
+      add_action_to_queue(state, FETCH_ZP_PTR_ADDR_INC_PC);
+      /*       3    pointer    R  fetch effective address low */
+      add_action_to_queue(state, FETCH_LOW_BYTE_ADDR_ZP);
+      /*       4   pointer+1   R  fetch effective address high, */
+      /*                          add Y to low byte of effective address */
+      add_action_to_queue(state, FETCH_HIGH_BYTE_ADDR_ADD_INDEX);
+      /*       5   address+Y*  R  read from effective address, */
+      /*                          fix high byte of effective address */
+      add_action_to_queue(state, SBC_READ_FROM_EFF_ADDR_FIX_HIGH_BYTE);
+      /*       6+  address+Y   R  read from effective address */
+      // ^Will be added in 313 if necessary
     break;
 
   // SBC zeropage, X
   case 0xF5:
       /* 2     PC      R  fetch address, increment PC */
       state->cpu->high_addr_byte = 0x0;
+      state->cpu->index_reg = &state->cpu->registers->X;      
       add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);      
       /* 3   address   R  read from address, add index register to it */
-      add_action_to_queue(state, LDY_ZEROPAGE_ADD_INDEX_X);
+      add_action_to_queue(state, ZEROPAGE_ADD_INDEX);
       /* 4  address+I* R  read from effective address */
       add_action_to_queue(state, SBC_MEMORY);
       break;
@@ -2671,10 +2806,11 @@ add_action_to_queue(state, PULL_PCL_FROM_STACK_INC_SP);
 // INC zero page, X
   case 0xF6:
       state->cpu->high_addr_byte = 0;
+      state->cpu->index_reg = &state->cpu->registers->X;      
         /* 2     PC      R  fetch address, increment PC */
       add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);
         /* 3   address   R  read from address, add index register X to it */
-      add_action_to_queue(state, LDY_ZEROPAGE_ADD_INDEX_X);
+      add_action_to_queue(state, ZEROPAGE_ADD_INDEX);
         /* 4  address+X* R  read from effective address */
       add_action_to_queue(state, STALL_CYCLE);
         /* 5  address+X* W  write the value back to effective address, */
@@ -2682,11 +2818,8 @@ add_action_to_queue(state, PULL_PCL_FROM_STACK_INC_SP);
       add_action_to_queue(state, STALL_CYCLE);      
         /* 6  address+X* W  write the new value to effective address */
       add_action_to_queue(state, INC_MEMORY);
-
       break;
 
-
-      
       
     // SED - Set Decimal Flag
   case 0xF8:
@@ -2703,15 +2836,30 @@ add_action_to_queue(state, PULL_PCL_FROM_STACK_INC_SP);
         /*                  fix the high byte of effective address */
         /* 5+ address+I  R  re-read from effective address */
       state->cpu->destination_reg = &state->cpu->registers->ACC;
-      state->cpu->source_reg = &state->cpu->registers->Y;
-    
+      /* state->cpu->source_reg = &state->cpu->registers->Y; */
+      state->cpu->index_reg = &state->cpu->registers->Y;
+      
       add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);
       add_action_to_queue(state, FETCH_EFF_ADDR_HIGH_ADD_INDEX_INC_PC);
-      
       add_action_to_queue(state, SBC_MEMORY);
       
       break;
     
+    // SBC absolute, X
+  case 0xFD:
+        /* 2     PC      R  fetch low byte of address, increment PC */
+        /* 3     PC      R  fetch high byte of address, */
+        /*                  add index register to low address byte, */
+        /*                  increment PC */
+        /* 4  address+I* R  read from effective address, */
+        /*                  fix the high byte of effective address */
+        /* 5+ address+I  R  re-read from effective address */
+      state->cpu->destination_reg = &state->cpu->registers->ACC;
+      state->cpu->index_reg = &state->cpu->registers->X;    
+      add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);
+      add_action_to_queue(state, FETCH_EFF_ADDR_HIGH_ADD_INDEX_INC_PC);
+      add_action_to_queue(state, SBC_MEMORY);
+      break;
 
     
     // unimplemented instruction is a fatal error

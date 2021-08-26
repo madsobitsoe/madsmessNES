@@ -517,7 +517,6 @@ void disass(nes_state *state, char *output) {
 	      addr & 0xFF,
               read_mem(state, addr));
     }
-
     break;
 
 
@@ -737,6 +736,33 @@ void disass(nes_state *state, char *output) {
   }
   break;
 
+    // EOR Absolute X
+  case 0x5D:
+    {
+      uint16_t addr = read_mem(state, state->cpu->current_opcode_PC+2) << 8;
+      addr |= read_mem(state, state->cpu->current_opcode_PC+1);
+      // Handle wrap-around
+      if (((uint32_t) addr) + ((uint32_t) state->cpu->registers->X) > 0xFFFF) {
+	  addr = state->cpu->registers->X - 1;
+      }
+      else {
+	  addr += state->cpu->registers->X;
+      }
+      sprintf(output, "%04X  %02X %02X %02X  EOR $%02X%02X,X @ %02X%02X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              read_mem(state, state->cpu->current_opcode_PC+1),
+              read_mem(state, state->cpu->current_opcode_PC+2),
+              read_mem(state, state->cpu->current_opcode_PC+2),
+              read_mem(state, state->cpu->current_opcode_PC+1),
+	      addr >> 8,
+	      addr & 0xFF,
+              read_mem(state, addr));
+    }
+    break;
+
+
+  
     // RTS - Return from subroutine
   case 0x60:
     sprintf(output, "%04X  %02X        RTS",
@@ -965,7 +991,34 @@ void disass(nes_state *state, char *output) {
       
   }
   break;
-    
+
+
+    // ADC Absolute X
+  case 0x7D:
+    {
+      uint16_t addr = read_mem(state, state->cpu->current_opcode_PC+2) << 8;
+      addr |= read_mem(state, state->cpu->current_opcode_PC+1);
+      // Handle wrap-around
+      if (((uint32_t) addr) + ((uint32_t) state->cpu->registers->X) > 0xFFFF) {
+	  addr = state->cpu->registers->X - 1;
+      }
+      else {
+	  addr += state->cpu->registers->X;
+      }
+      sprintf(output, "%04X  %02X %02X %02X  ADC $%02X%02X,X @ %02X%02X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              read_mem(state, state->cpu->current_opcode_PC+1),
+              read_mem(state, state->cpu->current_opcode_PC+2),
+              read_mem(state, state->cpu->current_opcode_PC+2),
+              read_mem(state, state->cpu->current_opcode_PC+1),
+	      addr >> 8,
+	      addr & 0xFF,
+              read_mem(state, addr));
+    }
+    break;
+
+  
     // STA indirect,X
   case 0x81:
     {
@@ -1198,6 +1251,33 @@ void disass(nes_state *state, char *output) {
             state->cpu->current_opcode);
     break;
 
+
+    // STA Absolute X
+  case 0x9D:
+    {
+      uint16_t addr = read_mem(state, state->cpu->current_opcode_PC+2) << 8;
+      addr |= read_mem(state, state->cpu->current_opcode_PC+1);
+      // Handle wrap-around
+      if (((uint32_t) addr) + ((uint32_t) state->cpu->registers->X) > 0xFFFF) {
+	  addr = state->cpu->registers->X - 1;
+      }
+      else {
+	  addr += state->cpu->registers->X;
+      }
+      sprintf(output, "%04X  %02X %02X %02X  STA $%02X%02X,X @ %02X%02X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              read_mem(state, state->cpu->current_opcode_PC+1),
+              read_mem(state, state->cpu->current_opcode_PC+2),
+              read_mem(state, state->cpu->current_opcode_PC+2),
+              read_mem(state, state->cpu->current_opcode_PC+1),
+	      addr >> 8,
+	      addr & 0xFF,
+              read_mem(state, addr));
+    }
+    break;
+
+    
     // LDY immediate
   case 0xA0:
     sprintf(output, "%04X  %02X %02X     LDY #$%02X",
@@ -1508,9 +1588,34 @@ void disass(nes_state *state, char *output) {
 	      addr & 0xFF,
               read_mem(state, addr));
     }
-
     break;
 
+    // LDA Absolute X
+  case 0xBD:
+    {
+      uint16_t addr = read_mem(state, state->cpu->current_opcode_PC+2) << 8;
+      addr |= read_mem(state, state->cpu->current_opcode_PC+1);
+      // Handle wrap-around
+      if (((uint32_t) addr) + ((uint32_t) state->cpu->registers->X) > 0xFFFF) {
+	  addr = state->cpu->registers->X - 1;
+      }
+      else {
+	  addr += state->cpu->registers->X;
+      }
+      sprintf(output, "%04X  %02X %02X %02X  LDA $%02X%02X,X @ %02X%02X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              read_mem(state, state->cpu->current_opcode_PC+1),
+              read_mem(state, state->cpu->current_opcode_PC+2),
+              read_mem(state, state->cpu->current_opcode_PC+2),
+              read_mem(state, state->cpu->current_opcode_PC+1),
+	      addr >> 8,
+	      addr & 0xFF,
+              read_mem(state, addr));
+    }
+    break;
+
+    
     // CPY immediate
   case 0xC0:
     sprintf(output, "%04X  %02X %02X     CPY #$%02X",
@@ -1756,6 +1861,33 @@ void disass(nes_state *state, char *output) {
   }
   break;
 
+    // CMP Absolute X
+  case 0xDD:
+    {
+      uint16_t addr = read_mem(state, state->cpu->current_opcode_PC+2) << 8;
+      addr |= read_mem(state, state->cpu->current_opcode_PC+1);
+      // Handle wrap-around
+      if (((uint32_t) addr) + ((uint32_t) state->cpu->registers->X) > 0xFFFF) {
+	  addr = state->cpu->registers->X - 1;
+      }
+      else {
+	  addr += state->cpu->registers->X;
+      }
+      sprintf(output, "%04X  %02X %02X %02X  CMP $%02X%02X,X @ %02X%02X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              read_mem(state, state->cpu->current_opcode_PC+1),
+              read_mem(state, state->cpu->current_opcode_PC+2),
+              read_mem(state, state->cpu->current_opcode_PC+2),
+              read_mem(state, state->cpu->current_opcode_PC+1),
+	      addr >> 8,
+	      addr & 0xFF,
+              read_mem(state, addr));
+    }
+    break;
+
+
+  
     // CPX immediate
   case 0xE0:
     sprintf(output, "%04X  %02X %02X     CPX #$%02X",
@@ -2009,7 +2141,33 @@ void disass(nes_state *state, char *output) {
       
   }
   break;
-    
+
+    // SBC Absolute X
+  case 0xFD:
+    {
+      uint16_t addr = read_mem(state, state->cpu->current_opcode_PC+2) << 8;
+      addr |= read_mem(state, state->cpu->current_opcode_PC+1);
+      // Handle wrap-around
+      if (((uint32_t) addr) + ((uint32_t) state->cpu->registers->X) > 0xFFFF) {
+	  addr = state->cpu->registers->X - 1;
+      }
+      else {
+	  addr += state->cpu->registers->X;
+      }
+      sprintf(output, "%04X  %02X %02X %02X  SBC $%02X%02X,X @ %02X%02X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              read_mem(state, state->cpu->current_opcode_PC+1),
+              read_mem(state, state->cpu->current_opcode_PC+2),
+              read_mem(state, state->cpu->current_opcode_PC+2),
+              read_mem(state, state->cpu->current_opcode_PC+1),
+	      addr >> 8,
+	      addr & 0xFF,
+              read_mem(state, addr));
+    }
+    break;
+
+  
   default:
     sprintf(output, "%04X  %02X not implemented yet",
             state->cpu->current_opcode_PC,
