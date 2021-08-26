@@ -209,10 +209,12 @@ void execute_next_action(nes_state *state) {
     if (*state->cpu->destination_reg >= 0x80) { set_negative_flag(state); }
     else { clear_negative_flag(state); }
     break;
+    
     // W  write register to effective address - zeropage
   case WRITE_REG_TO_EFF_ADDR_ZEROPAGE:
     state->memory[state->cpu->low_addr_byte] = *(state->cpu->source_reg);
     break;
+    
     // W  push PCH on stack, decrement S
   case PUSH_PCH_DEC_S:
     push(state, (uint8_t) (state->cpu->registers->PC >> 8));
@@ -485,28 +487,11 @@ void execute_next_action(nes_state *state) {
     }
     break;
 
-    // CMP/CPX/CPY memory
-  case CMP_CPX_CPY_MEMORY:
-    {
-      uint8_t reg = *state->cpu->source_reg;
-      uint8_t value = read_mem(state, ((uint16_t) state->cpu->high_addr_byte) << 8 | (uint16_t) state->cpu->low_addr_byte);
-      uint8_t res = reg - value;
-      /* http://www.6502.org/tutorials/6502opcodes.html#CMP */
-      /* Compare sets flags as if a subtraction had been carried out. */
-      /* If the value in the accumulator is equal or greater than the compared value, */
-      /* the Carry will be set. */
-      /* The equal (Z) and negative (N) flags will be set based on equality or lack */
-      /* thereof and the sign (i.e. A>=$80) of the accumulator. */
-      if (reg == value) { set_zero_flag(state); } else { clear_zero_flag(state); }
-      if (reg >= value) { set_carry_flag(state); } else { clear_carry_flag(state); }
-      if (res >= 0x80)  { set_negative_flag(state); } else { clear_negative_flag(state); }
-    }
-
     break;
-    // CMP/CPX/CPY memory
+    // CMP memory
   case CMP_MEMORY:
     {
-      uint8_t reg = state->cpu->registers->ACC;
+      uint8_t reg = *state->cpu->source_reg;
       uint8_t value = read_mem(state, ((uint16_t) state->cpu->high_addr_byte) << 8 | (uint16_t) state->cpu->low_addr_byte);
       uint8_t res = reg - value;
       /* http://www.6502.org/tutorials/6502opcodes.html#CMP */
@@ -630,7 +615,6 @@ void execute_next_action(nes_state *state) {
   case WRITE_REG_TO_EFF_ADDR_NON_ZEROPAGE:
     {
       uint16_t addr = state->cpu->high_addr_byte << 8 | state->cpu->low_addr_byte;
-
       state->memory[addr] = (*state->cpu->source_reg);
     }
     break;
@@ -713,11 +697,6 @@ void execute_next_action(nes_state *state) {
 	if (value == 0) { set_zero_flag(state); } else { clear_zero_flag(state); }
 	if (value & 0x80) { set_negative_flag(state); } else { clear_negative_flag(state); }
     }
-    break;
-
-    // Fetch low byte of address from operand (ZP-pointer)
-  case FETCH_LOW_BYTE_ADDR_ZP:
-    state->cpu->low_addr_byte = read_mem(state, state->cpu->operand);
     break;
     
     // Fetch high byte of address from operand+1, add index to low_addr
@@ -1153,7 +1132,7 @@ void add_instruction_to_queue(nes_state *state) {
     /*       2      PC       R  fetch pointer address, increment PC */
     add_action_to_queue(state, FETCH_ZP_PTR_ADDR_INC_PC);
     /*       3    pointer    R  fetch effective address low */
-    add_action_to_queue(state, FETCH_LOW_BYTE_ADDR_ZP);
+    add_action_to_queue(state, FETCH_EFF_ADDR_LOW);
     /*       4   pointer+1   R  fetch effective address high, */
     /*                          add Y to low byte of effective address */
     add_action_to_queue(state, FETCH_HIGH_BYTE_ADDR_ADD_INDEX);
@@ -1363,7 +1342,7 @@ void add_instruction_to_queue(nes_state *state) {
   /*       2      PC       R  fetch pointer address, increment PC */
     add_action_to_queue(state, FETCH_ZP_PTR_ADDR_INC_PC);
   /*       3    pointer    R  fetch effective address low */
-    add_action_to_queue(state, FETCH_LOW_BYTE_ADDR_ZP);
+    add_action_to_queue(state, FETCH_EFF_ADDR_LOW);
   /*       4   pointer+1   R  fetch effective address high, */
   /*                          add Y to low byte of effective address */
     add_action_to_queue(state, FETCH_HIGH_BYTE_ADDR_ADD_INDEX);
@@ -1585,7 +1564,7 @@ void add_instruction_to_queue(nes_state *state) {
     add_action_to_queue(state, FETCH_ZP_PTR_ADDR_INC_PC);
 
   /*       3    pointer    R  fetch effective address low */
-    add_action_to_queue(state, FETCH_LOW_BYTE_ADDR_ZP);
+    add_action_to_queue(state, FETCH_EFF_ADDR_LOW);
   /*       4   pointer+1   R  fetch effective address high, */
   /*                          add Y to low byte of effective address */
     add_action_to_queue(state, FETCH_HIGH_BYTE_ADDR_ADD_INDEX);
@@ -1809,7 +1788,7 @@ add_action_to_queue(state, PULL_PCL_FROM_STACK_INC_SP);
   /*       2      PC       R  fetch pointer address, increment PC */
     add_action_to_queue(state, FETCH_ZP_PTR_ADDR_INC_PC);
   /*       3    pointer    R  fetch effective address low */
-    add_action_to_queue(state, FETCH_LOW_BYTE_ADDR_ZP);
+    add_action_to_queue(state, FETCH_EFF_ADDR_LOW);
   /*       4   pointer+1   R  fetch effective address high, */
   /*                          add Y to low byte of effective address */
     add_action_to_queue(state, FETCH_HIGH_BYTE_ADDR_ADD_INDEX);
@@ -1996,7 +1975,7 @@ add_action_to_queue(state, PULL_PCL_FROM_STACK_INC_SP);
    /*      2      PC       R  fetch pointer address, increment PC */
     add_action_to_queue(state, FETCH_ZP_PTR_ADDR_INC_PC);
    /*      3    pointer    R  fetch effective address low */
-    add_action_to_queue(state, FETCH_LOW_BYTE_ADDR_ZP);
+    add_action_to_queue(state, FETCH_EFF_ADDR_LOW);
     /*      4   pointer+1   R  fetch effective address high, */
    /*                         add Y to low byte of effective address */
 
@@ -2287,7 +2266,7 @@ add_action_to_queue(state, PULL_PCL_FROM_STACK_INC_SP);
   /*       2      PC       R  fetch pointer address, increment PC */
     add_action_to_queue(state, FETCH_ZP_PTR_ADDR_INC_PC);
   /*       3    pointer    R  fetch effective address low */
-    add_action_to_queue(state, FETCH_LOW_BYTE_ADDR_ZP);
+    add_action_to_queue(state, FETCH_EFF_ADDR_LOW);
   /*       4   pointer+1   R  fetch effective address high, */
   /*                          add Y to low byte of effective address */
     add_action_to_queue(state, FETCH_HIGH_BYTE_ADDR_ADD_INDEX);
@@ -2439,8 +2418,8 @@ add_action_to_queue(state, PULL_PCL_FROM_STACK_INC_SP);
       state->cpu->index_reg = &state->cpu->registers->X;
       state->cpu->high_addr_byte = 0x0;
       state->cpu->low_addr_byte = 0x0;
-      //    state->cpu->source_reg = &state->cpu->registers->ACC;
-      state->cpu->destination_reg = &state->cpu->registers->ACC;
+      state->cpu->source_reg = &state->cpu->registers->ACC;
+      /* state->cpu->destination_reg = &state->cpu->registers->ACC; */
       /* 2      PC       R  fetch pointer address, increment PC */
       add_action_to_queue(state, INC_PC); // increment PC, nowhere to store pointer
       /*   3    pointer    R  read from the address, add X to it */
@@ -2450,7 +2429,7 @@ add_action_to_queue(state, PULL_PCL_FROM_STACK_INC_SP);
       /*   5  pointer+X+1  R  fetch effective address high */
       add_action_to_queue(state, FETCH_EFF_ADDR_HIGH);
       /*   6    address    W  write ACC to effective address */
-      add_action_to_queue(state, CMP_CPX_CPY_MEMORY);
+      add_action_to_queue(state, CMP_MEMORY);
     break;
     
     // CPY zeropage
@@ -2461,7 +2440,7 @@ add_action_to_queue(state, PULL_PCL_FROM_STACK_INC_SP);
     /* 2    PC     R  fetch address, increment PC */
     add_action_to_queue(state, 2);
     /*       3  address  R  read from effective address */
-    add_action_to_queue(state, CMP_CPX_CPY_MEMORY);
+    add_action_to_queue(state, CMP_MEMORY);
     break;
     // CMP zeropage
   case 0xC5:
@@ -2471,7 +2450,7 @@ add_action_to_queue(state, PULL_PCL_FROM_STACK_INC_SP);
     /* 2    PC     R  fetch address, increment PC */
     add_action_to_queue(state, 2);
     /*       3  address  R  read from effective address */
-    add_action_to_queue(state, CMP_CPX_CPY_MEMORY);
+    add_action_to_queue(state, CMP_MEMORY);
     break;
     
     // DEC Zeropage
@@ -2504,21 +2483,23 @@ add_action_to_queue(state, PULL_PCL_FROM_STACK_INC_SP);
     state->cpu->source_reg = &state->cpu->registers->X;
     add_action_to_queue(state, DEC_SOURCE_REG);
     break;
+    
     // CPY Absolute
   case 0xCC:
     state->cpu->source_reg = &state->cpu->registers->Y;
     add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);
     add_action_to_queue(state, FETCH_HIGH_ADDR_BYTE_INC_PC);
     // Read from effective address, copy to register
-    add_action_to_queue(state, CMP_CPX_CPY_MEMORY);
+    add_action_to_queue(state, CMP_MEMORY);
     break;
+    
     // CMP Absolute
   case 0xCD:
     state->cpu->source_reg = &state->cpu->registers->ACC;
     add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);
     add_action_to_queue(state, FETCH_HIGH_ADDR_BYTE_INC_PC);
     // Read from effective address, copy to register
-    add_action_to_queue(state, CMP_CPX_CPY_MEMORY);
+    add_action_to_queue(state, CMP_MEMORY);
     break;
     
     // DEC Absolute
@@ -2554,7 +2535,7 @@ add_action_to_queue(state, PULL_PCL_FROM_STACK_INC_SP);
       /*       2      PC       R  fetch pointer address, increment PC */
       add_action_to_queue(state, FETCH_ZP_PTR_ADDR_INC_PC);
       /*       3    pointer    R  fetch effective address low */
-      add_action_to_queue(state, FETCH_LOW_BYTE_ADDR_ZP);
+      add_action_to_queue(state, FETCH_EFF_ADDR_LOW);
       /*       4   pointer+1   R  fetch effective address high, */
       /*                          add Y to low byte of effective address */
       add_action_to_queue(state, FETCH_HIGH_BYTE_ADDR_ADD_INDEX);
@@ -2568,7 +2549,8 @@ add_action_to_queue(state, PULL_PCL_FROM_STACK_INC_SP);
   // CMP zeropage, X
   case 0xD5:
       /* 2     PC      R  fetch address, increment PC */
-      state->cpu->index_reg = &state->cpu->registers->X;      
+      state->cpu->index_reg = &state->cpu->registers->X;
+      state->cpu->source_reg = &state->cpu->registers->ACC;
       state->cpu->high_addr_byte = 0x0;
       add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);      
       /* 3   address   R  read from address, add index register to it */
@@ -2611,8 +2593,8 @@ add_action_to_queue(state, PULL_PCL_FROM_STACK_INC_SP);
         /* 4  address+I* R  read from effective address, */
         /*                  fix the high byte of effective address */
         /* 5+ address+I  R  re-read from effective address */
-      state->cpu->destination_reg = &state->cpu->registers->ACC;
-      /* state->cpu->source_reg = &state->cpu->registers->Y; */
+      /* state->cpu->destination_reg = &state->cpu->registers->ACC; */
+      state->cpu->source_reg = &state->cpu->registers->ACC;
       state->cpu->index_reg = &state->cpu->registers->Y;          
       add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);
       add_action_to_queue(state, FETCH_EFF_ADDR_HIGH_ADD_INDEX_INC_PC);
@@ -2630,7 +2612,7 @@ add_action_to_queue(state, PULL_PCL_FROM_STACK_INC_SP);
         /*                  fix the high byte of effective address */
         /* 5+ address+I  R  re-read from effective address */
       state->cpu->destination_reg = &state->cpu->registers->ACC;
-      /* state->cpu->source_reg = &state->cpu->registers->X; */
+      state->cpu->source_reg = &state->cpu->registers->ACC;
       state->cpu->index_reg = &state->cpu->registers->X;
       
       add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);
@@ -2677,7 +2659,7 @@ add_action_to_queue(state, PULL_PCL_FROM_STACK_INC_SP);
     /* 2    PC     R  fetch address, increment PC */
     add_action_to_queue(state, 2);
     /*       3  address  R  read from effective address */
-    add_action_to_queue(state, CMP_CPX_CPY_MEMORY);
+    add_action_to_queue(state, CMP_MEMORY);
     break;
     
     // SBC zeropage
@@ -2734,7 +2716,7 @@ add_action_to_queue(state, PULL_PCL_FROM_STACK_INC_SP);
     add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);
     add_action_to_queue(state, FETCH_HIGH_ADDR_BYTE_INC_PC);
     // Read from effective address, copy to register
-    add_action_to_queue(state, CMP_CPX_CPY_MEMORY);
+    add_action_to_queue(state, CMP_MEMORY);
     break;
     
     // SBC Absolute
@@ -2780,7 +2762,7 @@ add_action_to_queue(state, PULL_PCL_FROM_STACK_INC_SP);
       /*       2      PC       R  fetch pointer address, increment PC */
       add_action_to_queue(state, FETCH_ZP_PTR_ADDR_INC_PC);
       /*       3    pointer    R  fetch effective address low */
-      add_action_to_queue(state, FETCH_LOW_BYTE_ADDR_ZP);
+      add_action_to_queue(state, FETCH_EFF_ADDR_LOW);
       /*       4   pointer+1   R  fetch effective address high, */
       /*                          add Y to low byte of effective address */
       add_action_to_queue(state, FETCH_HIGH_BYTE_ADDR_ADD_INDEX);

@@ -7,7 +7,7 @@ uint8_t read_mem(nes_state *state, uint16_t memloc) {
   if (memloc >= 0x8000) {
     /* return state->rom[memloc - 0xC000]; */
     uint16_t translated = memloc - 0x8000;
-    printf("Memloc: %04X, translated: %04X\n", memloc, translated);
+    /* printf("Memloc: %04X, translated: %04X\n", memloc, translated); */
     if (translated < 0x4000) {
       return state->rom->prg_rom1[translated];
     }
@@ -207,6 +207,7 @@ uint8_t read_mem_ppu(nes_state *state, uint16_t memloc) {
 // The CPU can only write to PPU VRAM through the memory-mapped IO registers in the CPU memory map ($2000-$2007 + the dma port $4014
 // This function does not care about "who" accesses, as it is used by both the ppu and the cpu
 // Writes from cpu, will go through the write_mem function and that should be enough access control
-void write_mem_ppu(nes_state *state, uint16_t memloc, uint8_t value) {
-  return;
-}
+
+/* void write_mem_ppu(nes_state *state, uint16_t memloc, uint8_t value) { */
+/*   return; */
+/* } */
