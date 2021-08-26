@@ -1,4 +1,4 @@
-CYCLES=13800
+CYCLES=14700
 
 ./emu -s 0xc000 -c $CYCLES test/nestest.nes
 UNAME=$(uname)
