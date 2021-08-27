@@ -1248,6 +1248,29 @@ void disass(nes_state *state, char *output) {
     }
     break;
 
+
+    // *SAX indirect,X - Illegal instruction, ACC AND X -> Memory
+  case 0x83:
+    {
+      uint8_t operand = read_mem(state, state->cpu->current_opcode_PC+1);
+      uint16_t addr_addr = (uint16_t) state->cpu->registers->X + (uint16_t) operand;
+      addr_addr &= 0xFF;
+      uint16_t effective_addr = ((uint16_t) read_mem(state, addr_addr)) | (((uint16_t) read_mem(state, (addr_addr+1) & 0xFF)) << 8);
+      uint8_t value = read_mem(state, effective_addr);
+      sprintf(output, "%04X  %02X %02X    *SAX ($%02X,X) @ %02X = %04X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              operand,
+              operand,
+              addr_addr,
+              effective_addr,
+              value);
+    }
+    break;
+
+
+
+    
     //STY Zero Page
   case 0x84:
     sprintf(output, "%04X  %02X %02X     STY $%02X = %02X",
@@ -1275,6 +1298,17 @@ void disass(nes_state *state, char *output) {
             read_mem(state, state->cpu->current_opcode_PC+1),
             read_mem(state, read_mem(state, state->cpu->current_opcode_PC+1)));
     break;
+
+    // *SAX Zero Page - illegal instruction
+  case 0x87:
+    sprintf(output, "%04X  %02X %02X    *SAX $%02X = %02X",
+            state->cpu->current_opcode_PC,
+            state->cpu->current_opcode,
+            read_mem(state, state->cpu->current_opcode_PC+1),
+            read_mem(state, state->cpu->current_opcode_PC+1),
+            read_mem(state, read_mem(state, state->cpu->current_opcode_PC+1)));
+    break;
+
     
     // DEY
   case 0x88:
@@ -1320,6 +1354,7 @@ void disass(nes_state *state, char *output) {
               read_mem(state, addr));
     }
     break;
+    
     //STX Absolute
   case 0x8E:
     {
@@ -1336,6 +1371,25 @@ void disass(nes_state *state, char *output) {
                 read_mem(state, addr));
       }
     break;
+
+    //SAX Absolute - Illegal instruction
+  case 0x8F:
+    {
+      uint16_t addr = read_mem(state, state->cpu->current_opcode_PC+2) << 8;
+      addr |= read_mem(state, state->cpu->current_opcode_PC+1);
+
+      sprintf(output, "%04X  %02X %02X %02X *SAX $%02X%02X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              read_mem(state, state->cpu->current_opcode_PC+1),
+              read_mem(state, state->cpu->current_opcode_PC+2),
+              read_mem(state, state->cpu->current_opcode_PC+2),
+              read_mem(state, state->cpu->current_opcode_PC+1),
+              read_mem(state, addr));
+    }
+    break;
+
+
     
     // BCC
   case 0x90:
@@ -1417,6 +1471,22 @@ void disass(nes_state *state, char *output) {
     }
     break;
 
+    // *SAX Zeropage, Y - Illegal instruction
+  case 0x97:
+    {
+      uint16_t addr = (uint16_t) read_mem(state, state->cpu->current_opcode_PC+1);
+      addr += state->cpu->registers->Y;
+      addr &= 0xFF;
+      sprintf(output, "%04X  %02X %02X    *SAX $%02X,Y @ %02X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              read_mem(state, state->cpu->current_opcode_PC+1),
+              read_mem(state, state->cpu->current_opcode_PC+1),
+	      (uint8_t) addr,
+              read_mem(state, addr));
+    }
+    break;
+    
     
     // TYA
   case 0x98:
@@ -2009,6 +2079,28 @@ void disass(nes_state *state, char *output) {
               value);
     }
     break;
+
+    // *DCP indirect,X - Illegal instruction
+    // Equivalent to DEC value followed by CMP value
+  case 0xC3:
+    {
+      uint8_t operand = read_mem(state, state->cpu->current_opcode_PC+1);
+      uint16_t addr_addr = (uint16_t) state->cpu->registers->X + (uint16_t) operand;
+      addr_addr &= 0xFF;
+      uint16_t effective_addr = ((uint16_t) read_mem(state, addr_addr)) | (((uint16_t) read_mem(state, (addr_addr+1) & 0xFF)) << 8);
+      uint8_t value = read_mem(state, effective_addr);
+      sprintf(output, "%04X  %02X %02X    *DCP ($%02X,X) @ %02X = %04X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              operand,
+              operand,
+              addr_addr,
+              effective_addr,
+              value);
+    }
+    break;
+
+
     
     // CPY Zeropage
   case 0xC4:
@@ -2051,6 +2143,22 @@ void disass(nes_state *state, char *output) {
               read_mem(state, addr));
     }
     break;
+
+    // *DCP Zeropage - Illegal instruction
+  case 0xC7:
+    {
+      uint16_t addr = (uint16_t) read_mem(state, state->cpu->current_opcode_PC+1);
+
+      sprintf(output, "%04X  %02X %02X    *DCP $%02X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              read_mem(state, state->cpu->current_opcode_PC+1),
+              read_mem(state, state->cpu->current_opcode_PC+1),
+              read_mem(state, addr));
+    }
+    break;
+
+
     
     // INY
   case 0xC8:
@@ -2124,6 +2232,23 @@ void disass(nes_state *state, char *output) {
               read_mem(state, addr));
     }
     break;
+
+    // *DCP Absolute - Illegal Instruction
+  case 0xCF:
+    {
+      uint16_t addr = read_mem(state, state->cpu->current_opcode_PC+2) << 8;
+      addr |= read_mem(state, state->cpu->current_opcode_PC+1);
+
+      sprintf(output, "%04X  %02X %02X %02X *DCP $%02X%02X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              read_mem(state, state->cpu->current_opcode_PC+1),
+              read_mem(state, state->cpu->current_opcode_PC+2),
+              read_mem(state, state->cpu->current_opcode_PC+2),
+              read_mem(state, state->cpu->current_opcode_PC+1),
+              read_mem(state, addr));
+    }
+    break;
     
     // BNE
   case 0xD0:
@@ -2164,6 +2289,29 @@ void disass(nes_state *state, char *output) {
     }
     break;
 
+    // *DCP indirect-indexed,Y - Illegal instruction
+  case 0xD3:
+    {
+      uint8_t operand = read_mem(state, state->cpu->current_opcode_PC+1);
+      uint8_t low_addr = read_mem(state, (uint16_t) operand);
+      uint8_t high_addr = read_mem(state, (uint16_t) (operand + 1));
+
+      uint16_t effective_addr = (uint16_t) low_addr | ((uint16_t) high_addr) << 8;
+      effective_addr += (uint16_t) state->cpu->registers->Y;
+
+      uint8_t value = read_mem(state, effective_addr);
+      sprintf(output, "%04X  %02X %02X    *DCP ($%02X),Y = %02X%02X @ %04X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              operand,
+              operand,
+              high_addr,
+              low_addr,
+              effective_addr,
+              value);
+    }
+    break;
+    
     // CMP Zeropage, X
   case 0xD5:
     {
@@ -2196,6 +2344,23 @@ void disass(nes_state *state, char *output) {
     }
     break;
 
+    // *DCP Zeropage, X -- Illegal instruction
+  case 0xD7:
+    {
+      uint16_t addr = (uint16_t) read_mem(state, state->cpu->current_opcode_PC+1);
+      addr += state->cpu->registers->X;
+      addr &= 0xFF;
+      sprintf(output, "%04X  %02X %02X    *DCP $%02X,X @ %02X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              read_mem(state, state->cpu->current_opcode_PC+1),
+              read_mem(state, state->cpu->current_opcode_PC+1),
+	      (uint8_t) addr,
+              read_mem(state, addr));
+    }
+    break;
+
+    
   // CLD
   case 0xD8:
     sprintf(output, "%04X  %02X        CLD",
@@ -2228,6 +2393,32 @@ void disass(nes_state *state, char *output) {
   }
   break;
 
+  // *DCP Absolute Y - Illegal instruction
+  case 0xDB:
+  {
+      uint16_t addr = read_mem(state, state->cpu->current_opcode_PC+2) << 8;
+      addr |= read_mem(state, state->cpu->current_opcode_PC+1);
+      // Handle wrap-around
+      if (((uint32_t) addr) + ((uint32_t) state->cpu->registers->Y) > 0xFFFF) {
+	  addr = state->cpu->registers->Y - 1;
+      }
+      else {
+	  addr += state->cpu->registers->Y;
+      }
+      sprintf(output, "%04X  %02X %02X %02X *DCP $%02X%02X,Y @ %02X%02X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              read_mem(state, state->cpu->current_opcode_PC+1),
+              read_mem(state, state->cpu->current_opcode_PC+2),
+              read_mem(state, state->cpu->current_opcode_PC+2),
+              read_mem(state, state->cpu->current_opcode_PC+1),
+	      addr >> 8,
+	      addr & 0xFF,
+              read_mem(state, addr));    
+  }
+  break;
+
+  
     // CMP Absolute X
   case 0xDD:
     {
@@ -2277,7 +2468,35 @@ void disass(nes_state *state, char *output) {
               read_mem(state, addr));
     }
     break;
-  
+
+  // *DCP Absolute X - Illegal instruction
+  case 0xDF:
+  {
+      uint16_t addr = read_mem(state, state->cpu->current_opcode_PC+2) << 8;
+      addr |= read_mem(state, state->cpu->current_opcode_PC+1);
+      // Handle wrap-around
+      if (((uint32_t) addr) + ((uint32_t) state->cpu->registers->X) > 0xFFFF) {
+	  addr = state->cpu->registers->X - 1;
+      }
+      else {
+	  addr += state->cpu->registers->X;
+      }
+      sprintf(output, "%04X  %02X %02X %02X *DCP $%02X%02X,X @ %02X%02X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              read_mem(state, state->cpu->current_opcode_PC+1),
+              read_mem(state, state->cpu->current_opcode_PC+2),
+              read_mem(state, state->cpu->current_opcode_PC+2),
+              read_mem(state, state->cpu->current_opcode_PC+1),
+	      addr >> 8,
+	      addr & 0xFF,
+              read_mem(state, addr));    
+  }
+  break;
+
+
+
+    
     // CPX immediate
   case 0xE0:
     sprintf(output, "%04X  %02X %02X     CPX #$%02X",
@@ -2372,7 +2591,7 @@ void disass(nes_state *state, char *output) {
     
     // SBC "Illegal" opcode
   case 0xEB:
-    sprintf(output, "%04X  %02X %02X     SBC #$%02X",
+    sprintf(output, "%04X  %02X %02X    *SBC #$%02X",
             state->cpu->current_opcode_PC,
             state->cpu->current_opcode,
             read_mem(state, state->cpu->current_opcode_PC+1),
