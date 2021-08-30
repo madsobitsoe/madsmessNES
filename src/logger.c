@@ -559,6 +559,24 @@ void disass(nes_state *state, char *output) {
     }
     break;
 
+    // *RLA indirect,X - ROL followed by AND
+  case 0x23:
+    {
+      uint8_t operand = read_mem(state, state->cpu->current_opcode_PC+1);
+      uint16_t addr_addr = (uint16_t) state->cpu->registers->X + (uint16_t) operand;
+      addr_addr &= 0xFF;
+      uint16_t effective_addr = ((uint16_t) read_mem(state, addr_addr)) | (((uint16_t) read_mem(state, (addr_addr+1) & 0xFF)) << 8);
+      uint8_t value = read_mem(state, effective_addr);
+      sprintf(output, "%04X  %02X %02X    *RLA ($%02X,X) @ %02X = %04X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              operand,
+              operand,
+              addr_addr,
+              effective_addr,
+              value);
+    }
+    break;
 
 
     
@@ -600,6 +618,22 @@ void disass(nes_state *state, char *output) {
               read_mem(state, addr));
     }
     break;
+
+
+    // *RLA Zeropage - Illegal instruction
+  case 0x27:
+    {
+      uint16_t addr = (uint16_t) read_mem(state, state->cpu->current_opcode_PC+1);
+
+      sprintf(output, "%04X  %02X %02X    *RLA $%02X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              read_mem(state, state->cpu->current_opcode_PC+1),
+              read_mem(state, state->cpu->current_opcode_PC+1),
+              read_mem(state, addr));
+    }
+    break;
+
     
     // PLP
   case 0x28:
@@ -653,6 +687,7 @@ void disass(nes_state *state, char *output) {
               read_mem(state, addr));
     }
     break;
+    
     // ROL Absolute
   case 0x2E:
     {
@@ -670,6 +705,24 @@ void disass(nes_state *state, char *output) {
     }
     break;
 
+    // *RLA Absolute - Illegal instruction
+  case 0x2F:
+    {
+      uint16_t addr = read_mem(state, state->cpu->current_opcode_PC+2) << 8;
+      addr |= read_mem(state, state->cpu->current_opcode_PC+1);
+
+      sprintf(output, "%04X  %02X %02X %02X *RLA $%02X%02X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              read_mem(state, state->cpu->current_opcode_PC+1),
+              read_mem(state, state->cpu->current_opcode_PC+2),
+              read_mem(state, state->cpu->current_opcode_PC+2),
+              read_mem(state, state->cpu->current_opcode_PC+1),
+              read_mem(state, addr));
+    }
+    break;
+
+    
     // BMI
   case 0x30:
     sprintf(output, "%04X  %02X %02X     BMI $%04X",
@@ -710,6 +763,31 @@ void disass(nes_state *state, char *output) {
     }
     break;
 
+    // *RLA indirect-indexed,Y - Illegal instruction
+  case 0x33:
+    {
+
+      uint8_t operand = read_mem(state, state->cpu->current_opcode_PC+1);
+      uint8_t low_addr = read_mem(state, (uint16_t) operand);
+      uint8_t high_addr = read_mem(state, (uint16_t) (operand + 1));
+
+      uint16_t effective_addr = (uint16_t) low_addr | ((uint16_t) high_addr) << 8;
+      effective_addr += (uint16_t) state->cpu->registers->Y;
+
+      uint8_t value = read_mem(state, effective_addr);
+      sprintf(output, "%04X  %02X %02X    *RLA ($%02X),Y = %02X%02X @ %04X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              operand,
+              operand,
+              high_addr,
+              low_addr,
+              effective_addr,
+              value);
+    }
+    break;
+
+    
 
     // AND Zeropage, X
   case 0x35:
@@ -734,6 +812,22 @@ void disass(nes_state *state, char *output) {
       addr += state->cpu->registers->X;
       addr &= 0xFF;
       sprintf(output, "%04X  %02X %02X     ROL $%02X,X @ %02X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              read_mem(state, state->cpu->current_opcode_PC+1),
+              read_mem(state, state->cpu->current_opcode_PC+1),
+	      (uint8_t) addr,
+              read_mem(state, addr));
+    }
+    break;
+    
+    // *RLA Zeropage, X
+  case 0x37:
+    {
+      uint16_t addr = (uint16_t) read_mem(state, state->cpu->current_opcode_PC+1);
+      addr += state->cpu->registers->X;
+      addr &= 0xFF;
+      sprintf(output, "%04X  %02X %02X    *RLA $%02X,X @ %02X = %02X",
               state->cpu->current_opcode_PC,
               state->cpu->current_opcode,
               read_mem(state, state->cpu->current_opcode_PC+1),
@@ -775,6 +869,30 @@ void disass(nes_state *state, char *output) {
               /* read_mem(state, state->cpu->current_opcode_PC+1), */
               read_mem(state, addr));
       
+  }
+  break;
+  // *RLA Absolute Y - Illegal instruction
+  case 0x3B:
+  {
+      uint16_t addr = read_mem(state, state->cpu->current_opcode_PC+2) << 8;
+      addr |= read_mem(state, state->cpu->current_opcode_PC+1);
+      // Handle wrap-around
+      if (((uint32_t) addr) + ((uint32_t) state->cpu->registers->Y) > 0xFFFF) {
+	  addr = state->cpu->registers->Y - 1;
+      }
+      else {
+	  addr += state->cpu->registers->Y;
+      }
+      sprintf(output, "%04X  %02X %02X %02X *RLA $%02X%02X,Y @ %02X%02X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              read_mem(state, state->cpu->current_opcode_PC+1),
+              read_mem(state, state->cpu->current_opcode_PC+2),
+              read_mem(state, state->cpu->current_opcode_PC+2),
+              read_mem(state, state->cpu->current_opcode_PC+1),
+	      addr >> 8,
+	      addr & 0xFF,
+              read_mem(state, addr));      
   }
   break;
   
@@ -828,6 +946,32 @@ void disass(nes_state *state, char *output) {
     }
     break;
 
+    // *RLA Absolute X
+  case 0x3F:
+    {
+      uint16_t addr = read_mem(state, state->cpu->current_opcode_PC+2) << 8;
+      addr |= read_mem(state, state->cpu->current_opcode_PC+1);
+      // Handle wrap-around
+      if (((uint32_t) addr) + ((uint32_t) state->cpu->registers->X) > 0xFFFF) {
+	  addr = state->cpu->registers->X - 1;
+      }
+      else {
+	  addr += state->cpu->registers->X;
+      }
+      sprintf(output, "%04X  %02X %02X %02X *RLA $%02X%02X,X @ %02X%02X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              read_mem(state, state->cpu->current_opcode_PC+1),
+              read_mem(state, state->cpu->current_opcode_PC+2),
+              read_mem(state, state->cpu->current_opcode_PC+2),
+              read_mem(state, state->cpu->current_opcode_PC+1),
+	      addr >> 8,
+	      addr & 0xFF,
+              read_mem(state, addr));
+    }
+    break;
+
+    
     // RTI - Return from Interrupt
   case 0x40:
     sprintf(output, "%04X  %02X        RTI",
