@@ -288,20 +288,26 @@ void disass(nes_state *state, char *output) {
     // ORA indirect-indexed,Y
   case 0x11:
     {
+      /* uint8_t operand = read_mem(state, state->cpu->current_opcode_PC+1); */
+      /* uint8_t low_addr = read_mem(state, (uint16_t) operand); */
+      /* uint8_t high_addr = read_mem(state, (uint16_t) (operand + 1)); */
+
+      /* // check if page boundary was crossed and fix addresses */
+      /* uint16_t base = (uint16_t) low_addr | ((uint16_t) high_addr) << 8; */
+      /* uint16_t offset = (uint16_t) state->cpu->registers->Y; */
+      /* if (((base & 0xFF) + offset) > 0xFF) { */
+      /*   /\* effective_addr += 0x100; *\/ */
+      /*   if (high_addr < 0xFF) { high_addr++; } */
+      /* } */
+      /* uint16_t effective_addr = (uint16_t) low_addr | ((uint16_t) high_addr) << 8; */
+      /* effective_addr += (uint16_t) state->cpu->registers->Y; */
+
       uint8_t operand = read_mem(state, state->cpu->current_opcode_PC+1);
       uint8_t low_addr = read_mem(state, (uint16_t) operand);
       uint8_t high_addr = read_mem(state, (uint16_t) (operand + 1));
 
-      // check if page boundary was crossed and fix addresses
-      uint16_t base = (uint16_t) low_addr | ((uint16_t) high_addr) << 8;
-      uint16_t offset = (uint16_t) state->cpu->registers->Y;
-      if (((base & 0xFF) + offset) > 0xFF) {
-        /* effective_addr += 0x100; */
-        if (high_addr < 0xFF) { high_addr++; }
-      }
       uint16_t effective_addr = (uint16_t) low_addr | ((uint16_t) high_addr) << 8;
       effective_addr += (uint16_t) state->cpu->registers->Y;
-
 
       uint8_t value = read_mem(state, effective_addr);
       sprintf(output, "%04X  %02X %02X     ORA ($%02X),Y = %02X%02X @ %04X = %02X",
@@ -736,16 +742,22 @@ void disass(nes_state *state, char *output) {
   case 0x31:
     {
 
+      /* uint8_t operand = read_mem(state, state->cpu->current_opcode_PC+1); */
+      /* uint8_t low_addr = read_mem(state, (uint16_t) operand); */
+      /* uint8_t high_addr = read_mem(state, (uint16_t) (operand + 1)); */
+
+      /* // check if page boundary was crossed and fix addresses */
+      /* uint16_t base = (uint16_t) low_addr | ((uint16_t) high_addr) << 8; */
+      /* uint16_t offset = (uint16_t) state->cpu->registers->Y; */
+      /* if (((base & 0xFF) + offset) > 0xFF) { */
+      /*   if (high_addr < 0xFF) { high_addr++; } */
+      /* } */
+      /* uint16_t effective_addr = (uint16_t) low_addr | ((uint16_t) high_addr) << 8; */
+      /* effective_addr += (uint16_t) state->cpu->registers->Y; */
       uint8_t operand = read_mem(state, state->cpu->current_opcode_PC+1);
       uint8_t low_addr = read_mem(state, (uint16_t) operand);
       uint8_t high_addr = read_mem(state, (uint16_t) (operand + 1));
 
-      // check if page boundary was crossed and fix addresses
-      uint16_t base = (uint16_t) low_addr | ((uint16_t) high_addr) << 8;
-      uint16_t offset = (uint16_t) state->cpu->registers->Y;
-      if (((base & 0xFF) + offset) > 0xFF) {
-        if (high_addr < 0xFF) { high_addr++; }
-      }
       uint16_t effective_addr = (uint16_t) low_addr | ((uint16_t) high_addr) << 8;
       effective_addr += (uint16_t) state->cpu->registers->Y;
 
@@ -1158,16 +1170,22 @@ void disass(nes_state *state, char *output) {
     // EOR indirect-indexed,Y
   case 0x51:
     {
+      /* uint8_t operand = read_mem(state, state->cpu->current_opcode_PC+1); */
+      /* uint8_t low_addr = read_mem(state, (uint16_t) operand); */
+      /* uint8_t high_addr = read_mem(state, (uint16_t) (operand + 1)); */
+
+      /* // check if page boundary was crossed and fix addresses */
+      /* uint16_t base = (uint16_t) low_addr | ((uint16_t) high_addr) << 8; */
+      /* uint16_t offset = (uint16_t) state->cpu->registers->Y; */
+      /* if (((base & 0xFF) + offset) > 0xFF) { */
+      /*   if (high_addr < 0xFF) { high_addr++; } */
+      /* } */
+      /* uint16_t effective_addr = (uint16_t) low_addr | ((uint16_t) high_addr) << 8; */
+      /* effective_addr += (uint16_t) state->cpu->registers->Y; */
       uint8_t operand = read_mem(state, state->cpu->current_opcode_PC+1);
       uint8_t low_addr = read_mem(state, (uint16_t) operand);
       uint8_t high_addr = read_mem(state, (uint16_t) (operand + 1));
 
-      // check if page boundary was crossed and fix addresses
-      uint16_t base = (uint16_t) low_addr | ((uint16_t) high_addr) << 8;
-      uint16_t offset = (uint16_t) state->cpu->registers->Y;
-      if (((base & 0xFF) + offset) > 0xFF) {
-        if (high_addr < 0xFF) { high_addr++; }
-      }
       uint16_t effective_addr = (uint16_t) low_addr | ((uint16_t) high_addr) << 8;
       effective_addr += (uint16_t) state->cpu->registers->Y;
 
@@ -1392,6 +1410,7 @@ void disass(nes_state *state, char *output) {
             state->cpu->current_opcode_PC,
             state->cpu->current_opcode);
     break;
+    
     // ADC indirect,X
   case 0x61:
     {
@@ -1410,6 +1429,28 @@ void disass(nes_state *state, char *output) {
               value);
     }
     break;
+
+    // *RRA indirect,X - Illegal instruction
+  case 0x63:
+    {
+      uint8_t operand = read_mem(state, state->cpu->current_opcode_PC+1);
+      uint16_t addr_addr = (uint16_t) state->cpu->registers->X + (uint16_t) operand;
+      addr_addr &= 0xFF;
+      uint16_t effective_addr = ((uint16_t) read_mem(state, addr_addr)) | (((uint16_t) read_mem(state, (addr_addr+1) & 0xFF)) << 8);
+      uint8_t value = read_mem(state, effective_addr);
+      sprintf(output, "%04X  %02X %02X    *RRA ($%02X,X) @ %02X = %04X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              operand,
+              operand,
+              addr_addr,
+              effective_addr,
+              value);
+    }
+    break;
+
+
+    
     // ADC Zeropage
   case 0x65:
     {
@@ -1423,6 +1464,7 @@ void disass(nes_state *state, char *output) {
               read_mem(state, addr));
     }
     break;
+    
     // ROR Zeropage
   case 0x66:
     {
@@ -1436,6 +1478,21 @@ void disass(nes_state *state, char *output) {
               read_mem(state, addr));
     }
     break;
+    
+    // *RRA Zeropage - Illegal instruction
+  case 0x67:
+    {
+      uint16_t addr = (uint16_t) read_mem(state, state->cpu->current_opcode_PC+1);
+
+      sprintf(output, "%04X  %02X %02X    *RRA $%02X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              read_mem(state, state->cpu->current_opcode_PC+1),
+              read_mem(state, state->cpu->current_opcode_PC+1),
+              read_mem(state, addr));
+    }
+    break;
+    
     // PLA
   case 0x68:
     sprintf(output, "%04X  %02X        PLA",
@@ -1516,6 +1573,24 @@ void disass(nes_state *state, char *output) {
               read_mem(state, addr));
     }
     break;
+
+    // *RRA Absolute
+  case 0x6F:
+    {
+      uint16_t addr = read_mem(state, state->cpu->current_opcode_PC+2) << 8;
+      addr |= read_mem(state, state->cpu->current_opcode_PC+1);
+
+      sprintf(output, "%04X  %02X %02X %02X *RRA $%02X%02X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              read_mem(state, state->cpu->current_opcode_PC+1),
+              read_mem(state, state->cpu->current_opcode_PC+2),
+              read_mem(state, state->cpu->current_opcode_PC+2),
+              read_mem(state, state->cpu->current_opcode_PC+1),
+              read_mem(state, addr));
+    }
+    break;
+
     
     // BVS
   case 0x70:
@@ -1529,12 +1604,12 @@ void disass(nes_state *state, char *output) {
     // ADC indirect-indexed,Y
   case 0x71:
     {
-
       uint8_t operand = read_mem(state, state->cpu->current_opcode_PC+1);
       uint8_t low_addr = read_mem(state, (uint16_t) operand);
       uint8_t high_addr = read_mem(state, (uint16_t) (operand + 1));
-      low_addr += state->cpu->registers->Y;
+
       uint16_t effective_addr = (uint16_t) low_addr | ((uint16_t) high_addr) << 8;
+      effective_addr += (uint16_t) state->cpu->registers->Y;
       uint8_t value = read_mem(state, effective_addr);
       sprintf(output, "%04X  %02X %02X     ADC ($%02X),Y = %02X%02X @ %04X = %02X",
               state->cpu->current_opcode_PC,
@@ -1547,6 +1622,30 @@ void disass(nes_state *state, char *output) {
               value);
     }
     break;
+
+    // *RRA indirect-indexed,Y
+  case 0x73:
+    {
+      uint8_t operand = read_mem(state, state->cpu->current_opcode_PC+1);
+      uint8_t low_addr = read_mem(state, (uint16_t) operand);
+      uint8_t high_addr = read_mem(state, (uint16_t) (operand + 1));
+
+      uint16_t effective_addr = (uint16_t) low_addr | ((uint16_t) high_addr) << 8;
+      effective_addr += (uint16_t) state->cpu->registers->Y;
+
+      uint8_t value = read_mem(state, effective_addr);
+      sprintf(output, "%04X  %02X %02X    *RRA ($%02X),Y = %02X%02X @ %04X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              operand,
+              operand,
+              high_addr,
+              low_addr,
+              effective_addr,
+              value);
+    }
+    break;
+
     
     // ADC Zeropage, X
   case 0x75:
@@ -1579,6 +1678,23 @@ void disass(nes_state *state, char *output) {
               read_mem(state, addr));
     }
     break;
+
+    // *RRA Zeropage, X
+  case 0x77:
+    {
+      uint16_t addr = (uint16_t) read_mem(state, state->cpu->current_opcode_PC+1);
+      addr += state->cpu->registers->X;
+      addr &= 0xFF;
+      sprintf(output, "%04X  %02X %02X    *RRA $%02X,X @ %02X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              read_mem(state, state->cpu->current_opcode_PC+1),
+              read_mem(state, state->cpu->current_opcode_PC+1),
+	      (uint8_t) addr,
+              read_mem(state, addr));
+    }
+    break;
+    
     
     // SEI
   case 0x78:
@@ -1608,14 +1724,35 @@ void disass(nes_state *state, char *output) {
               read_mem(state, state->cpu->current_opcode_PC+1),
 	      addr >> 8,
 	      addr & 0xFF,
-              /* read_mem(state, state->cpu->current_opcode_PC+2), */
-              /* read_mem(state, state->cpu->current_opcode_PC+1), */
-              read_mem(state, addr));
-      
+              read_mem(state, addr));      
   }
   break;
 
-
+  // *RRA Absolute Y - Illegal instruction
+  case 0x7B:
+  {
+      uint16_t addr = read_mem(state, state->cpu->current_opcode_PC+2) << 8;
+      addr |= read_mem(state, state->cpu->current_opcode_PC+1);
+      // Handle wrap-around
+      if (((uint32_t) addr) + ((uint32_t) state->cpu->registers->Y) > 0xFFFF) {
+	  addr = state->cpu->registers->Y - 1;
+      }
+      else {
+	  addr += state->cpu->registers->Y;
+      }
+      sprintf(output, "%04X  %02X %02X %02X *RRA $%02X%02X,Y @ %02X%02X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              read_mem(state, state->cpu->current_opcode_PC+1),
+              read_mem(state, state->cpu->current_opcode_PC+2),
+              read_mem(state, state->cpu->current_opcode_PC+2),
+              read_mem(state, state->cpu->current_opcode_PC+1),
+	      addr >> 8,
+	      addr & 0xFF,
+              read_mem(state, addr));      
+  }
+  break;
+  
     // ADC Absolute X
   case 0x7D:
     {
@@ -1665,7 +1802,34 @@ void disass(nes_state *state, char *output) {
               read_mem(state, addr));
     }
     break;
-  
+
+  // *RRA Absolute X - Illegal instruction
+  case 0x7F:
+  {
+      uint16_t addr = read_mem(state, state->cpu->current_opcode_PC+2) << 8;
+      addr |= read_mem(state, state->cpu->current_opcode_PC+1);
+      // Handle wrap-around
+      if (((uint32_t) addr) + ((uint32_t) state->cpu->registers->X) > 0xFFFF) {
+	  addr = state->cpu->registers->X - 1;
+      }
+      else {
+	  addr += state->cpu->registers->X;
+      }
+      sprintf(output, "%04X  %02X %02X %02X *RRA $%02X%02X,X @ %02X%02X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              read_mem(state, state->cpu->current_opcode_PC+1),
+              read_mem(state, state->cpu->current_opcode_PC+2),
+              read_mem(state, state->cpu->current_opcode_PC+2),
+              read_mem(state, state->cpu->current_opcode_PC+1),
+	      addr >> 8,
+	      addr & 0xFF,
+              read_mem(state, addr));      
+  }
+  break;
+    
+
+    
     // STA indirect,X
   case 0x81:
     {
@@ -2216,7 +2380,6 @@ void disass(nes_state *state, char *output) {
       /*   LDA ($02),Y */
       /*   In the above case, Y is loaded with four (4), and the vector is given as ($02) */
       /* If zero page memory $02-$03 contains 00 80, then the effective address from the vector ($02) plus the offset (Y) would be $8004. */
-
       uint8_t operand = read_mem(state, state->cpu->current_opcode_PC+1);
       uint8_t low_addr = read_mem(state, (uint16_t) operand);
       uint8_t high_addr = read_mem(state, (uint16_t) (operand + 1));
@@ -2230,7 +2393,6 @@ void disass(nes_state *state, char *output) {
       }
       uint16_t effective_addr = (uint16_t) low_addr | ((uint16_t) high_addr) << 8;
       effective_addr += (uint16_t) state->cpu->registers->Y;
-
 
       uint8_t value = read_mem(state, effective_addr);
       sprintf(output, "%04X  %02X %02X     LDA ($%02X),Y = %02X%02X @ %04X = %02X",
@@ -2248,25 +2410,31 @@ void disass(nes_state *state, char *output) {
     // *LAX indirect-indexed,Y - Illegal opcode
   case 0xB3:
     {
-      /* LDY #$04 */
-      /*   LDA ($02),Y */
-      /*   In the above case, Y is loaded with four (4), and the vector is given as ($02) */
-      /* If zero page memory $02-$03 contains 00 80, then the effective address from the vector ($02) plus the offset (Y) would be $8004. */
+      /* /\* LDY #$04 *\/ */
+      /* /\*   LDA ($02),Y *\/ */
+      /* /\*   In the above case, Y is loaded with four (4), and the vector is given as ($02) *\/ */
+      /* /\* If zero page memory $02-$03 contains 00 80, then the effective address from the vector ($02) plus the offset (Y) would be $8004. *\/ */
+
+      /* uint8_t operand = read_mem(state, state->cpu->current_opcode_PC+1); */
+      /* uint8_t low_addr = read_mem(state, (uint16_t) operand); */
+      /* uint8_t high_addr = read_mem(state, (uint16_t) (operand + 1)); */
+
+      /* // check if page boundary was crossed and fix addresses */
+      /* /\* uint16_t base = (uint16_t) low_addr | ((uint16_t) high_addr) << 8; *\/ */
+      /* /\* uint16_t offset = (uint16_t) state->cpu->registers->Y; *\/ */
+      /* /\* if (((base & 0xFF) + offset) > 0xFF) { *\/ */
+      /* /\*   /\\* effective_addr += 0x100; *\\/ *\/ */
+      /* /\*   if (high_addr < 0xFF) { high_addr++; } *\/ */
+      /* /\* } *\/ */
+      /* uint16_t effective_addr = (uint16_t) low_addr | ((uint16_t) high_addr) << 8; */
+      /* effective_addr += (uint16_t) state->cpu->registers->Y; */
 
       uint8_t operand = read_mem(state, state->cpu->current_opcode_PC+1);
       uint8_t low_addr = read_mem(state, (uint16_t) operand);
       uint8_t high_addr = read_mem(state, (uint16_t) (operand + 1));
 
-      // check if page boundary was crossed and fix addresses
-      /* uint16_t base = (uint16_t) low_addr | ((uint16_t) high_addr) << 8; */
-      /* uint16_t offset = (uint16_t) state->cpu->registers->Y; */
-      /* if (((base & 0xFF) + offset) > 0xFF) { */
-      /*   /\* effective_addr += 0x100; *\/ */
-      /*   if (high_addr < 0xFF) { high_addr++; } */
-      /* } */
       uint16_t effective_addr = (uint16_t) low_addr | ((uint16_t) high_addr) << 8;
       effective_addr += (uint16_t) state->cpu->registers->Y;
-
 
       uint8_t value = read_mem(state, effective_addr);
       sprintf(output, "%04X  %02X %02X    *LAX ($%02X),Y = %02X%02X @ %04X = %02X",
@@ -2700,16 +2868,22 @@ void disass(nes_state *state, char *output) {
     // CMP indirect-indexed,Y
   case 0xD1:
     {
+      /* uint8_t operand = read_mem(state, state->cpu->current_opcode_PC+1); */
+      /* uint8_t low_addr = read_mem(state, (uint16_t) operand); */
+      /* uint8_t high_addr = read_mem(state, (uint16_t) (operand + 1)); */
+
+      /* // check if page boundary was crossed and fix addresses */
+      /* uint16_t base = (uint16_t) low_addr | ((uint16_t) high_addr) << 8; */
+      /* uint16_t offset = (uint16_t) state->cpu->registers->Y; */
+      /* if (((base & 0xFF) + offset) > 0xFF) { */
+      /*   if (high_addr < 0xFF) { high_addr++; } */
+      /* } */
+      /* uint16_t effective_addr = (uint16_t) low_addr | ((uint16_t) high_addr) << 8; */
+      /* effective_addr += (uint16_t) state->cpu->registers->Y; */
       uint8_t operand = read_mem(state, state->cpu->current_opcode_PC+1);
       uint8_t low_addr = read_mem(state, (uint16_t) operand);
       uint8_t high_addr = read_mem(state, (uint16_t) (operand + 1));
 
-      // check if page boundary was crossed and fix addresses
-      uint16_t base = (uint16_t) low_addr | ((uint16_t) high_addr) << 8;
-      uint16_t offset = (uint16_t) state->cpu->registers->Y;
-      if (((base & 0xFF) + offset) > 0xFF) {
-        if (high_addr < 0xFF) { high_addr++; }
-      }
       uint16_t effective_addr = (uint16_t) low_addr | ((uint16_t) high_addr) << 8;
       effective_addr += (uint16_t) state->cpu->registers->Y;
 
@@ -3148,16 +3322,22 @@ void disass(nes_state *state, char *output) {
     // SBC indirect-indexed,Y
   case 0xF1:
     {
+      /* uint8_t operand = read_mem(state, state->cpu->current_opcode_PC+1); */
+      /* uint8_t low_addr = read_mem(state, (uint16_t) operand); */
+      /* uint8_t high_addr = read_mem(state, (uint16_t) (operand + 1)); */
+
+      /* // check if page boundary was crossed and fix addresses */
+      /* uint16_t base = (uint16_t) low_addr | ((uint16_t) high_addr) << 8; */
+      /* uint16_t offset = (uint16_t) state->cpu->registers->Y; */
+      /* if (((base & 0xFF) + offset) > 0xFF) { */
+      /*   if (high_addr < 0xFF) { high_addr++; } */
+      /* } */
+      /* uint16_t effective_addr = (uint16_t) low_addr | ((uint16_t) high_addr) << 8; */
+      /* effective_addr += (uint16_t) state->cpu->registers->Y; */
       uint8_t operand = read_mem(state, state->cpu->current_opcode_PC+1);
       uint8_t low_addr = read_mem(state, (uint16_t) operand);
       uint8_t high_addr = read_mem(state, (uint16_t) (operand + 1));
 
-      // check if page boundary was crossed and fix addresses
-      uint16_t base = (uint16_t) low_addr | ((uint16_t) high_addr) << 8;
-      uint16_t offset = (uint16_t) state->cpu->registers->Y;
-      if (((base & 0xFF) + offset) > 0xFF) {
-        if (high_addr < 0xFF) { high_addr++; }
-      }
       uint16_t effective_addr = (uint16_t) low_addr | ((uint16_t) high_addr) << 8;
       effective_addr += (uint16_t) state->cpu->registers->Y;
 
@@ -3177,9 +3357,9 @@ void disass(nes_state *state, char *output) {
     // *ISB indirect-indexed,Y - Illegal instruction
   case 0xF3:
     {
-      uint8_t operand = read_mem(state, state->cpu->current_opcode_PC+1);
-      uint8_t low_addr = read_mem(state, (uint16_t) operand);
-      uint8_t high_addr = read_mem(state, (uint16_t) (operand + 1));
+      /* uint8_t operand = read_mem(state, state->cpu->current_opcode_PC+1); */
+      /* uint8_t low_addr = read_mem(state, (uint16_t) operand); */
+      /* uint8_t high_addr = read_mem(state, (uint16_t) (operand + 1)); */
 
       /* // check if page boundary was crossed and fix addresses */
       /* uint16_t base = (uint16_t) low_addr | ((uint16_t) high_addr) << 8; */
@@ -3187,6 +3367,12 @@ void disass(nes_state *state, char *output) {
       /* if (((base & 0xFF) + offset) > 0xFF) { */
       /*   if (high_addr < 0xFF) { high_addr++; } */
       /* } */
+      /* uint16_t effective_addr = (uint16_t) low_addr | ((uint16_t) high_addr) << 8; */
+      /* effective_addr += (uint16_t) state->cpu->registers->Y; */
+      uint8_t operand = read_mem(state, state->cpu->current_opcode_PC+1);
+      uint8_t low_addr = read_mem(state, (uint16_t) operand);
+      uint8_t high_addr = read_mem(state, (uint16_t) (operand + 1));
+
       uint16_t effective_addr = (uint16_t) low_addr | ((uint16_t) high_addr) << 8;
       effective_addr += (uint16_t) state->cpu->registers->Y;
 

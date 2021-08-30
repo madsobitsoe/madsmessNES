@@ -24,6 +24,7 @@ uint8_t read_mem(nes_state *state, uint16_t memloc) {
   /*   2000-2007 is how the CPU writes to the PPU, 2008-3FFF are mirrors of that address range. */
   if (memloc >= 0x2000 && memloc <= 0x3FFF) {
     printf("PPU Reg read! reg: %04X\n", memloc);
+
     uint16_t translated = memloc & 0x2007;
     switch (translated) {
       // write-only, return the latch
@@ -55,9 +56,35 @@ uint8_t read_mem(nes_state *state, uint16_t memloc) {
   if (memloc >= 0x4000 && memloc <= 0x401F) {
     // TODO - implement reading APU IO
     switch(memloc) {
+      // Actually APU IO pulse 2[0]
+      // Fake a read from now
+    case 0x4004:
+	return 0xFF;
+	break;
+      // Actually APU IO pulse 2[1]
+      // Fake a read from now
+    case 0x4005:
+	return 0xFF;
+	break;
+      // Actually APU IO pulse 2[2]
+      // Fake a read from now
+    case 0x4006:
+	return 0xFF;
+	break;
+      // Actually APU IO pulse 2[3]
+      // Fake a read from now
+    case 0x4007:
+	return 0xFF;
+	break;
+        
     case 0x4014:
       return state->ppu->registers->oam_dma;
       break;
+      // Actually APU IO Status reg
+      // Fake a read from now
+    case 0x4015:
+	return 0xFF;
+	break;
     }
   }
 
@@ -84,7 +111,7 @@ uint8_t read_mem(nes_state *state, uint16_t memloc) {
 
 void write_mem(nes_state *state, uint16_t memloc, uint8_t value) {
   /*   8000-FFFF is the main area the cartridge ROM is mapped to in memory. Sometimes it can be bank switched, usually in 32k, 16k, or 8k sized banks. */
-
+    /* __asm__("int3"); */
   // Writing to rom is not possible, signal fatal error
   if (memloc >= 0x8000) {
     state->fatal_error = true;
@@ -124,6 +151,7 @@ void write_mem(nes_state *state, uint16_t memloc, uint8_t value) {
         state->ppu->registers->ppu_scroll = value;
         break;
       case 0x2006:
+	  /* __asm__("int3"); */
         if (state->ppu->high_pointer) {
           state->ppu->internal_addr_reg &= 0xff;
           state->ppu->internal_addr_reg |= ((uint16_t) value << 8);
