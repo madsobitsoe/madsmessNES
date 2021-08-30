@@ -30,7 +30,7 @@ all: emu
 # 	$(CC) -o $@ $^ $(CFLAGS)
 
 emu: src/cpu.c src/rom_loader.c src/nes.c src/ppu.c src/logger.c src/memory.c src/main.c src/rom_loader.c include/rom_loader.h include/nes.h include/cpu.h include/definitions.h include/ppu.h
-	gcc -Wall -Wextra -o emu src/memory.c src/cpu.c src/ppu.c src/rom_loader.c src/nes.c src/logger.c src/main.c -Iinclude -lreadline
+	gcc -ggdb -Wall -Wextra -o emu src/memory.c src/cpu.c src/ppu.c src/rom_loader.c src/nes.c src/logger.c src/main.c -Iinclude -lreadline
 
 # terrible, but good enough for now
 tileviewer: src/tile_viewer.c src/rom_loader.c include/rom_loader.h
