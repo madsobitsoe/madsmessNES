@@ -25,7 +25,7 @@ typedef struct CPU_STATE {
   uint8_t operand;
   uint16_t current_opcode_PC;
   uint64_t cpu_cycle;
-  uint16_t action_queue[10];
+  uint16_t action_queue[16];
   uint8_t next_action;
   uint8_t end_of_queue;
 
@@ -57,6 +57,7 @@ typedef struct PPU_STATE {
   bool high_pointer; // Is the next write to $2005 the high or low byte?
   uint8_t address_latch; // "dynamic latch" aka. internal buffer in ppu used by $2005, $2006 and $2007
   uint16_t internal_addr_reg; // Use for the internal addr written through the ppu_addr $2006 register, updated by reads from $2007
+    bool nmi_occurred;
 } ppu_state;
 
 
