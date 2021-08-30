@@ -52,6 +52,7 @@ nes_state* init_state() {
   state->ppu->address_latch = 0;
   state->ppu->high_pointer = true;
   state->ppu->internal_addr_reg = 0;
+  state->ppu->nmi_occurred = false;
   return state;
 }
 
