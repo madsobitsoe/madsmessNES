@@ -98,7 +98,17 @@ enum ACTION {
     SAX_PERFORM_AND_THEN_WRITE_EFF_ADDR_NO_AFFECT_FLAGS = 901,
     DCP_PERFORM_DEC_MEMORY_THEN_CMP_MEMORY = 902,
     FIX_HIGH_BYTE_NO_WRITE = 903,
-    FETCH_HIGH_BYTE_ADDR_ADD_INDEX_NO_EXTRA_CYCLE = 904,    
+    FETCH_HIGH_BYTE_ADDR_ADD_INDEX_NO_EXTRA_CYCLE = 904,
+    ISB_PERFORM_INC_MEMORY_THEN_SBC_MEMORY = 905,    
+    NMI_FETCH_PCL = 1000,
+    NMI_FETCH_PCH = 1001,
+    IRQ_FETCH_PCL = 1002,
+    IRQ_FETCH_PCH = 1003,
+    BRK_FETCH_PCL = 1004,
+    BRK_FETCH_PCH = 1005,
+    PUSH_STATUS_REG_DEC_S_CLEAR_B_FLAG = 1006,
+    PUSH_STATUS_REG_DEC_S_SET_B_FLAG = 1007,
+    SLO_PERFOM_ASL_THEN_ORA = 1008,    
 };
 
 
@@ -116,6 +126,7 @@ uint16_t read_mem_short(nes_state *state, unsigned short memloc);
 uint16_t translate_memory_location(unsigned short memloc);
 void add_action_to_queue(nes_state *state, uint16_t action);
 
+void trigger_interrupt(nes_state *state);
 
 void set_negative_flag(nes_state *state);
 void set_overflow_flag(nes_state *state);

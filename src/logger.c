@@ -29,6 +29,26 @@ void disass(nes_state *state, char *output) {
     }
     break;
 
+    // *SLO indirect,X - Illegal instruction
+  case 0x03:
+    {
+      uint8_t operand = read_mem(state, state->cpu->current_opcode_PC+1);
+      uint16_t addr_addr = (uint16_t) state->cpu->registers->X + (uint16_t) operand;
+      addr_addr &= 0xFF;
+      uint16_t effective_addr = ((uint16_t) read_mem(state, addr_addr)) | (((uint16_t) read_mem(state, (addr_addr+1) & 0xFF)) << 8);
+      uint8_t value = read_mem(state, effective_addr);
+      sprintf(output, "%04X  %02X %02X    *SLO ($%02X,X) @ %02X = %04X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              operand,
+              operand,
+              addr_addr,
+              effective_addr,
+              value);
+    }
+    break;
+
+    
     // *NOP Zeropage - "illegal instruction"
   case 0x04:
   case 0x44:
@@ -103,6 +123,23 @@ void disass(nes_state *state, char *output) {
               read_mem(state, addr));
     }
     break;
+
+    // *SLO Zeropage - Illegal instruction
+  case 0x07:
+    {
+      uint16_t addr = (uint16_t) read_mem(state, state->cpu->current_opcode_PC+1);
+
+      sprintf(output, "%04X  %02X %02X    *SLO $%02X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              read_mem(state, state->cpu->current_opcode_PC+1),
+              read_mem(state, state->cpu->current_opcode_PC+1),
+              read_mem(state, addr));
+    }
+    break;
+
+
+    
     // PHP
   case 0x08:
     sprintf(output, "%04X  %02X        PHP",
@@ -203,6 +240,7 @@ void disass(nes_state *state, char *output) {
               read_mem(state, addr));
     }
     break;
+    
     // ASL Absolute
   case 0x0E:
     {
@@ -219,6 +257,24 @@ void disass(nes_state *state, char *output) {
               read_mem(state, addr));
     }
     break;
+
+    // *SLO Absolute - Illegal instruction
+  case 0x0F:
+    {
+      uint16_t addr = read_mem(state, state->cpu->current_opcode_PC+2) << 8;
+      addr |= read_mem(state, state->cpu->current_opcode_PC+1);
+
+      sprintf(output, "%04X  %02X %02X %02X *SLO $%02X%02X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              read_mem(state, state->cpu->current_opcode_PC+1),
+              read_mem(state, state->cpu->current_opcode_PC+2),
+              read_mem(state, state->cpu->current_opcode_PC+2),
+              read_mem(state, state->cpu->current_opcode_PC+1),
+              read_mem(state, addr));
+    }
+    break;
+
     
     // BPL
   case 0x10:
@@ -260,6 +316,32 @@ void disass(nes_state *state, char *output) {
     }
     break;
 
+
+    // *SLO indirect-indexed,Y - Illegal instruction
+  case 0x13:
+    {
+      uint8_t operand = read_mem(state, state->cpu->current_opcode_PC+1);
+      uint8_t low_addr = read_mem(state, (uint16_t) operand);
+      uint8_t high_addr = read_mem(state, (uint16_t) (operand + 1));
+
+      uint16_t effective_addr = (uint16_t) low_addr | ((uint16_t) high_addr) << 8;
+      effective_addr += (uint16_t) state->cpu->registers->Y;
+
+
+      uint8_t value = read_mem(state, effective_addr);
+      sprintf(output, "%04X  %02X %02X    *SLO ($%02X),Y = %02X%02X @ %04X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              operand,
+              operand,
+              high_addr,
+              low_addr,
+              effective_addr,
+              value);
+    }
+    break;
+
+    
     // ORA Zeropage, X
   case 0x15:
     {
@@ -292,6 +374,21 @@ void disass(nes_state *state, char *output) {
     }
     break;
 
+    // *SLO Zeropage, X - Illegal instruction
+  case 0x17:
+    {
+      uint16_t addr = (uint16_t) read_mem(state, state->cpu->current_opcode_PC+1);
+      addr += state->cpu->registers->X;
+      addr &= 0xFF;
+      sprintf(output, "%04X  %02X %02X    *SLO $%02X,X @ %02X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              read_mem(state, state->cpu->current_opcode_PC+1),
+              read_mem(state, state->cpu->current_opcode_PC+1),
+	      (uint8_t) addr,
+              read_mem(state, addr));
+    }
+    break;
 
     
     // CLC
@@ -325,6 +422,34 @@ void disass(nes_state *state, char *output) {
       
   }
   break;
+
+
+// *SLO Absolute Y - Illegal instruction
+  case 0x1B:
+  {
+      uint16_t addr = read_mem(state, state->cpu->current_opcode_PC+2) << 8;
+      addr |= read_mem(state, state->cpu->current_opcode_PC+1);
+      // Handle wrap-around
+      if (((uint32_t) addr) + ((uint32_t) state->cpu->registers->Y) > 0xFFFF) {
+	  addr = state->cpu->registers->Y - 1;
+      }
+      else {
+	  addr += state->cpu->registers->Y;
+      }
+      sprintf(output, "%04X  %02X %02X %02X *SLO $%02X%02X,Y @ %02X%02X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              read_mem(state, state->cpu->current_opcode_PC+1),
+              read_mem(state, state->cpu->current_opcode_PC+2),
+              read_mem(state, state->cpu->current_opcode_PC+2),
+              read_mem(state, state->cpu->current_opcode_PC+1),
+	      addr >> 8,
+	      addr & 0xFF,
+              read_mem(state, addr));
+      
+  }
+  break;
+
   
     // ORA Absolute X
   case 0x1D:
@@ -376,6 +501,30 @@ void disass(nes_state *state, char *output) {
     }
     break;
     
+    // *SLO Absolute X - Illegal instruction
+  case 0x1F:
+    {
+      uint16_t addr = read_mem(state, state->cpu->current_opcode_PC+2) << 8;
+      addr |= read_mem(state, state->cpu->current_opcode_PC+1);
+      // Handle wrap-around
+      if (((uint32_t) addr) + ((uint32_t) state->cpu->registers->X) > 0xFFFF) {
+	  addr = state->cpu->registers->X - 1;
+      }
+      else {
+	  addr += state->cpu->registers->X;
+      }
+      sprintf(output, "%04X  %02X %02X %02X *SLO $%02X%02X,X @ %02X%02X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              read_mem(state, state->cpu->current_opcode_PC+1),
+              read_mem(state, state->cpu->current_opcode_PC+2),
+              read_mem(state, state->cpu->current_opcode_PC+2),
+              read_mem(state, state->cpu->current_opcode_PC+1),
+	      addr >> 8,
+	      addr & 0xFF,
+              read_mem(state, addr));
+    }
+    break;
 
 
     // JSR
@@ -2524,6 +2673,27 @@ void disass(nes_state *state, char *output) {
               value);
     }
     break;
+
+    // *ISB indirect,X
+  case 0xE3:
+    {
+      uint8_t operand = read_mem(state, state->cpu->current_opcode_PC+1);
+      uint16_t addr_addr = (uint16_t) state->cpu->registers->X + (uint16_t) operand;
+      addr_addr &= 0xFF;
+      uint16_t effective_addr = ((uint16_t) read_mem(state, addr_addr)) | (((uint16_t) read_mem(state, (addr_addr+1) & 0xFF)) << 8);
+      uint8_t value = read_mem(state, effective_addr);
+      sprintf(output, "%04X  %02X %02X    *ISB ($%02X,X) @ %02X = %04X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              operand,
+              operand,
+              addr_addr,
+              effective_addr,
+              value);
+    }
+    break;
+
+
     
     // CPX Zeropage
   case 0xE4:
@@ -2566,6 +2736,21 @@ void disass(nes_state *state, char *output) {
     }
     break;
 
+    // *ISB Zeropage - Illegal instruction
+  case 0xE7:
+    {
+      uint16_t addr = (uint16_t) read_mem(state, state->cpu->current_opcode_PC+1);
+
+      sprintf(output, "%04X  %02X %02X    *ISB $%02X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              read_mem(state, state->cpu->current_opcode_PC+1),
+              read_mem(state, state->cpu->current_opcode_PC+1),
+              read_mem(state, addr));
+    }
+    break;
+
+    
     // INX
   case 0xE8:
     sprintf(output, "%04X  %02X        INX",
@@ -2645,6 +2830,23 @@ void disass(nes_state *state, char *output) {
               read_mem(state, addr));
     }
     break;
+
+    // *ISB Absolute - Illegal instruction
+  case 0xEF:
+    {
+      uint16_t addr = read_mem(state, state->cpu->current_opcode_PC+2) << 8;
+      addr |= read_mem(state, state->cpu->current_opcode_PC+1);
+      sprintf(output, "%04X  %02X %02X %02X *ISB $%02X%02X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              read_mem(state, state->cpu->current_opcode_PC+1),
+              read_mem(state, state->cpu->current_opcode_PC+2),
+              read_mem(state, state->cpu->current_opcode_PC+2),
+              read_mem(state, state->cpu->current_opcode_PC+1),
+              read_mem(state, addr));
+    }
+    break;
+
     
     // BEQ
   case 0xF0:
@@ -2684,6 +2886,36 @@ void disass(nes_state *state, char *output) {
     }
     break;
 
+    // *ISB indirect-indexed,Y - Illegal instruction
+  case 0xF3:
+    {
+      uint8_t operand = read_mem(state, state->cpu->current_opcode_PC+1);
+      uint8_t low_addr = read_mem(state, (uint16_t) operand);
+      uint8_t high_addr = read_mem(state, (uint16_t) (operand + 1));
+
+      /* // check if page boundary was crossed and fix addresses */
+      /* uint16_t base = (uint16_t) low_addr | ((uint16_t) high_addr) << 8; */
+      /* uint16_t offset = (uint16_t) state->cpu->registers->Y; */
+      /* if (((base & 0xFF) + offset) > 0xFF) { */
+      /*   if (high_addr < 0xFF) { high_addr++; } */
+      /* } */
+      uint16_t effective_addr = (uint16_t) low_addr | ((uint16_t) high_addr) << 8;
+      effective_addr += (uint16_t) state->cpu->registers->Y;
+
+      uint8_t value = read_mem(state, effective_addr);
+      sprintf(output, "%04X  %02X %02X    *ISB ($%02X),Y = %02X%02X @ %04X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              operand,
+              operand,
+              high_addr,
+              low_addr,
+              effective_addr,
+              value);
+    }
+    break;
+
+    
     // SBC Zeropage, X
   case 0xF5:
     {
@@ -2715,6 +2947,23 @@ void disass(nes_state *state, char *output) {
               read_mem(state, addr));
     }
     break;
+
+    // *ISB Zeropage, X - Illegal instruction
+  case 0xF7:
+    {
+      uint16_t addr = (uint16_t) read_mem(state, state->cpu->current_opcode_PC+1);
+      addr += state->cpu->registers->X;
+      addr &= 0xFF;
+      sprintf(output, "%04X  %02X %02X    *ISB $%02X,X @ %02X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              read_mem(state, state->cpu->current_opcode_PC+1),
+              read_mem(state, state->cpu->current_opcode_PC+1),
+	      (uint8_t) addr,
+              read_mem(state, addr));
+    }
+    break;
+
     
     // SED
   case 0xF8:
@@ -2751,6 +3000,36 @@ void disass(nes_state *state, char *output) {
   }
   break;
 
+
+  // *ISB Absolute Y
+  case 0xFB:
+  {
+      uint16_t addr = read_mem(state, state->cpu->current_opcode_PC+2) << 8;
+      addr |= read_mem(state, state->cpu->current_opcode_PC+1);
+      // Handle wrap-around
+      if (((uint32_t) addr) + ((uint32_t) state->cpu->registers->Y) > 0xFFFF) {
+	  addr = state->cpu->registers->Y - 1;
+      }
+      else {
+	  addr += state->cpu->registers->Y;
+      }
+      sprintf(output, "%04X  %02X %02X %02X *ISB $%02X%02X,Y @ %02X%02X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              read_mem(state, state->cpu->current_opcode_PC+1),
+              read_mem(state, state->cpu->current_opcode_PC+2),
+              read_mem(state, state->cpu->current_opcode_PC+2),
+              read_mem(state, state->cpu->current_opcode_PC+1),
+	      addr >> 8,
+	      addr & 0xFF,
+              /* read_mem(state, state->cpu->current_opcode_PC+2), */
+              /* read_mem(state, state->cpu->current_opcode_PC+1), */
+              read_mem(state, addr));
+      
+  }
+  break;
+
+  
     // SBC Absolute X
   case 0xFD:
     {
@@ -2800,6 +3079,32 @@ void disass(nes_state *state, char *output) {
               read_mem(state, addr));
     }
     break;
+
+    // *ISB Absolute X
+  case 0xFF:
+    {
+      uint16_t addr = read_mem(state, state->cpu->current_opcode_PC+2) << 8;
+      addr |= read_mem(state, state->cpu->current_opcode_PC+1);
+      // Handle wrap-around
+      if (((uint32_t) addr) + ((uint32_t) state->cpu->registers->X) > 0xFFFF) {
+	  addr = state->cpu->registers->X - 1;
+      }
+      else {
+	  addr += state->cpu->registers->X;
+      }
+      sprintf(output, "%04X  %02X %02X %02X *ISB $%02X%02X,X @ %02X%02X = %02X",
+              state->cpu->current_opcode_PC,
+              state->cpu->current_opcode,
+              read_mem(state, state->cpu->current_opcode_PC+1),
+              read_mem(state, state->cpu->current_opcode_PC+2),
+              read_mem(state, state->cpu->current_opcode_PC+2),
+              read_mem(state, state->cpu->current_opcode_PC+1),
+	      addr >> 8,
+	      addr & 0xFF,
+              read_mem(state, addr));
+    }
+    break;
+
     
   
   default:
