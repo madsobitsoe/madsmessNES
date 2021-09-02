@@ -655,7 +655,7 @@ void execute_next_action(nes_state *state) {
     case LAX_READ_EFF_ADDR_STORE_IN_REGS_AFFECT_NZ_FLAGS:
     {
 	uint16_t addr = state->cpu->high_addr_byte << 8 | state->cpu->low_addr_byte;
-           
+
 	uint8_t value = read_mem(state, addr);
 	state->cpu->registers->ACC = value;
 	state->cpu->registers->X = value;
@@ -674,34 +674,36 @@ void execute_next_action(nes_state *state) {
     case FETCH_EFF_ADDR_LOW:
 	state->cpu->low_addr_byte = read_mem(state, (uint16_t) state->cpu->operand);
 	break;
-    
+
 	// Fetch effective address high
     case FETCH_EFF_ADDR_HIGH:
-	/* printf("fetching high addr_byte from %04X\n", (uint16_t) state->cpu->operand+1); */
-	state->cpu->high_addr_byte = read_mem(state, (uint16_t) ((uint16_t) state->cpu->operand+1) & 0xff);
-	break;
+      {
+        state->cpu->high_addr_byte = read_mem(state, (uint16_t) ((uint16_t) state->cpu->operand+1) & 0xff);
+      }
+      break;
 
-	// Fetch effective address high, add index to full addr
+      // Fetch effective address high, add index to full addr
     case FETCH_EFF_ADDR_HIGH_ADD_INDEX:
-	uint16_t addr = read_mem(state, (uint16_t) ((uint16_t) state->cpu->operand+1) & 0xff);
-	addr = addr << 8;
-	addr |= state->cpu->low_addr_byte;
-	// Figure out if page boundary was crossed, add stall cycle if needed
-	if (((addr >> 8) != ((addr + *state->cpu->index_reg) >> 8))) {
-	    add_action_to_queue(state, STALL_CYCLE);
-	}
-    
-	addr += *state->cpu->index_reg;
-	state->cpu->low_addr_byte = addr & 0xFF;
-	state->cpu->high_addr_byte = addr >> 8;
-	break;    
-    
-	// Fetch zeropage pointer address, store pointer in "operand", increment PC
+      {
+        uint16_t addr = read_mem(state, (uint16_t) ((uint16_t) state->cpu->operand+1) & 0xff);
+        addr = addr << 8;
+        addr |= state->cpu->low_addr_byte;
+        // Figure out if page boundary was crossed, add stall cycle if needed
+        if (((addr >> 8) != ((addr + *state->cpu->index_reg) >> 8))) {
+          add_action_to_queue(state, STALL_CYCLE);
+        }
+
+        addr += *state->cpu->index_reg;
+        state->cpu->low_addr_byte = addr & 0xFF;
+        state->cpu->high_addr_byte = addr >> 8;
+      }
+      break;
+      // Fetch zeropage pointer address, store pointer in "operand", increment PC
     case FETCH_ZP_PTR_ADDR_INC_PC:
-    {
-	state->cpu->operand = read_mem(state, state->cpu->registers->PC);
-	state->cpu->registers->PC++;
-    }
+      {
+        state->cpu->operand = read_mem(state, state->cpu->registers->PC);
+        state->cpu->registers->PC++;
+      }
     break;
 
     // Increment memory
@@ -1051,13 +1053,13 @@ void execute_next_action(nes_state *state) {
 	state->cpu->low_addr_byte += *state->cpu->index_reg;
     }
 	break;
-	
+
     case SAX_PERFORM_AND_THEN_WRITE_EFF_ADDR_NO_AFFECT_FLAGS:
     {
-	uint16_t addr = ((uint16_t) state->cpu->high_addr_byte) << 8 | (uint16_t)state->cpu->low_addr_byte;      
+	uint16_t addr = ((uint16_t) state->cpu->high_addr_byte) << 8 | (uint16_t)state->cpu->low_addr_byte;
 	uint8_t value = state->cpu->registers->ACC & state->cpu->registers->X;
 	write_mem(state, addr, value);
-    }   
+    }
     break;
 
     case DCP_PERFORM_DEC_MEMORY_THEN_CMP_MEMORY:
@@ -1077,7 +1079,7 @@ void execute_next_action(nes_state *state) {
 	/* thereof and the sign (i.e. A>=$80) of the accumulator. */
 	if (reg == value) { set_zero_flag(state); } else { clear_zero_flag(state); }
 	if (reg >= value) { set_carry_flag(state); } else { clear_carry_flag(state); }
-	if (res >= 0x80)  { set_negative_flag(state); } else { clear_negative_flag(state); }      
+	if (res >= 0x80)  { set_negative_flag(state); } else { clear_negative_flag(state); }
     }
     break;
 
@@ -1103,7 +1105,7 @@ void execute_next_action(nes_state *state) {
     break;
 
 
-    
+
     case FIX_HIGH_BYTE_NO_WRITE:
     {
 	uint16_t addr = ((uint16_t) state->cpu->high_addr_byte) << 8 | (uint16_t)state->cpu->low_addr_byte;
@@ -1111,7 +1113,7 @@ void execute_next_action(nes_state *state) {
 	if ((addr - offset) >> 8 != addr >> 8) {
 	    state->cpu->high_addr_byte++;
 	}
-	
+
     }
     break;
 
@@ -1121,16 +1123,16 @@ void execute_next_action(nes_state *state) {
 	uint16_t addr = ((uint16_t) state->cpu->high_addr_byte) << 8 | (uint16_t)state->cpu->low_addr_byte;
 	uint8_t value = read_mem(state, addr);
 	// Affect carry flag before shifting away the byte
-	if (value & 0x80) { set_carry_flag(state); }  else { clear_carry_flag(state); }	
+	if (value & 0x80) { set_carry_flag(state); }  else { clear_carry_flag(state); }
 	value = value << 1;
 	write_mem(state, addr, value);
 	uint8_t res = state->cpu->registers->ACC | (read_mem(state, addr));
 	// Set ORA flags
 	if (res == 0) { set_zero_flag(state); } else { clear_zero_flag(state); }
-	if (res > 0x7F) { set_negative_flag(state); } else { clear_negative_flag(state); }	
+	if (res > 0x7F) { set_negative_flag(state); } else { clear_negative_flag(state); }
 	state->cpu->registers->ACC = res;
-	
-    }	
+
+    }
 	break;
 
     case RLA_DO_ROL_THEN_AND:
@@ -1170,7 +1172,7 @@ void execute_next_action(nes_state *state) {
 	// Set flags for EOR
 	if (value == 0) { set_zero_flag(state); } else { clear_zero_flag(state); }
 	if (value & 0x80) { set_negative_flag(state); } else { clear_negative_flag(state); }
-	
+
     }
     break;
 
@@ -1202,54 +1204,54 @@ void execute_next_action(nes_state *state) {
         {    set_overflow_flag(state); }
 	else { clear_overflow_flag(state);}
 	state->cpu->registers->ACC = (uint8_t) res;
-	
+
     }
     break;
-    
+
 // Interrupts
-// I think(!) that I need to fetch a pointer from these locations instead of just jumping there.     
+// I think(!) that I need to fetch a pointer from these locations instead of just jumping there.
     case NMI_FETCH_PCL:
 	/* state->cpu->registers->PC = 0xFFFA; */
-	break; 
+	break;
     case NMI_FETCH_PCH:
 	state->cpu->registers->PC = read_mem(state, 0xFFFA);
 	state->cpu->registers->PC |= read_mem(state, 0xFFFB) << 8;
-	
-	break; 
+
+	break;
     case IRQ_FETCH_PCL:
-	state->cpu->registers->PC = 0xFFFE;	
-	break; 
+	state->cpu->registers->PC = 0xFFFE;
+	break;
     case IRQ_FETCH_PCH:
 	// Do nothing
-	break; 
+	break;
     case BRK_FETCH_PCL:
 	/* state->cpu->registers->PC = 0xFFFE; */
-	break; 
+	break;
     case BRK_FETCH_PCH:
 	state->cpu->registers->PC = read_mem(state, 0xFFFE);
 	state->cpu->registers->PC |= read_mem(state, 0xFFFF) << 8;
 
-	break; 
+	break;
     case PUSH_STATUS_REG_DEC_S_CLEAR_B_FLAG:
 	/* See this note about the B flag for explanation of the OR */
 	/* https://wiki.nesdev.com/w/index.php/Status_flags#The_B_flag */
 	set_interrupt_flag(state);
 	state->memory[state->cpu->registers->SP + 0x100] = 32 | state->cpu->registers->SR;
 	state->cpu->registers->SP--;
-	
+
 	break;
-	
+
     case PUSH_STATUS_REG_DEC_S_SET_B_FLAG:
 	/* See this note about the B flag for explanation of the OR */
 	/* https://wiki.nesdev.com/w/index.php/Status_flags#The_B_flag */
-	
+
 	state->memory[state->cpu->registers->SP + 0x100] = 48 | state->cpu->registers->SR;
 	state->cpu->registers->SP--;
-	
-	break; 
+
+	break;
 
 
-    
+
     }
 
     state->cpu->next_action++;
@@ -1271,7 +1273,7 @@ void add_instruction_to_queue(nes_state *state) {
     // Check for interrupts!
     if (state->ppu->registers->ppu_status & 128) {
 	trigger_interrupt(state);
-    } 
+    }
     // First cycle of all instructions is to fetch the opcode and inc the PC
     add_action_to_queue(state, FETCH_OPCODE_INC_PC);
     uint8_t opcode = read_mem(state, state->cpu->registers->PC);
@@ -1285,7 +1287,7 @@ void add_instruction_to_queue(nes_state *state) {
 	add_action_to_queue(state, PUSH_PCH_DEC_S);
         /* 4  $0100,S  W  push PCL on stack, decrement S */
 	add_action_to_queue(state, PUSH_PCL_DEC_S);
-     /* 	If a hardware interrupt (NMI or IRQ) occurs before the fourth (flags saving) cycle of BRK, 
+     /* 	If a hardware interrupt (NMI or IRQ) occurs before the fourth (flags saving) cycle of BRK,
 		the BRK instruction will be skipped, and */
      /* the processor will jump to the hardware interrupt vector. This */
      /* sequence will always take 7 cycles. */
@@ -1314,7 +1316,7 @@ void add_instruction_to_queue(nes_state *state) {
 	add_action_to_queue(state, ORA_READ_FROM_EFF_ADDR_FIX_HIGH_BYTE);
 	break;
 
-	
+
 	// *SLO indexed indirect, X - Illegal instruction
     case 0x03:
 	state->cpu->index_reg = &state->cpu->registers->X;
@@ -1330,7 +1332,7 @@ void add_instruction_to_queue(nes_state *state) {
 	add_action_to_queue(state, STALL_CYCLE);
         /* 7    address    W  write the value back to effective address, */
         /*                    and do the operation on it */
-	add_action_to_queue(state, STALL_CYCLE);	
+	add_action_to_queue(state, STALL_CYCLE);
         /* 8    address    W  write the new value to effective address */
 	add_action_to_queue(state, SLO_DO_ASL_THEN_ORA);
 	break;
@@ -1434,9 +1436,9 @@ void add_instruction_to_queue(nes_state *state) {
 	add_action_to_queue(state, SLO_DO_ASL_THEN_ORA);
 	break;
 
-	
 
-	
+
+
 	// PHP - Push Processor Status on stack
     case 0x08:
 	/* 2    PC     R  read next instruction byte (and throw it away) */
@@ -1491,7 +1493,7 @@ void add_instruction_to_queue(nes_state *state) {
 	break;
 
 
-	
+
 	// BPL - Branch Result Plus
     case 0x10:
 	add_action_to_queue(state, FETCH_OPERAND_INC_PC);
@@ -1504,7 +1506,7 @@ void add_instruction_to_queue(nes_state *state) {
 	// ORA indirect-indexed, Y
     case 0x11:
 	state->cpu->destination_reg = &state->cpu->registers->ACC;
-	state->cpu->index_reg = &state->cpu->registers->Y;	
+	state->cpu->index_reg = &state->cpu->registers->Y;
 	/*       2      PC       R  fetch pointer address, increment PC */
 	add_action_to_queue(state, FETCH_ZP_PTR_ADDR_INC_PC);
 	/*       3    pointer    R  fetch effective address low */
@@ -1522,12 +1524,12 @@ void add_instruction_to_queue(nes_state *state) {
     case 0x13:
 	state->cpu->index_reg = &state->cpu->registers->Y;
         /* 2      PC       R  fetch pointer address, increment PC */
-	add_action_to_queue(state, FETCH_ZP_PTR_ADDR_INC_PC);	
+	add_action_to_queue(state, FETCH_ZP_PTR_ADDR_INC_PC);
         /* 3    pointer    R  fetch effective address low */
-	add_action_to_queue(state, FETCH_EFF_ADDR_LOW);	
+	add_action_to_queue(state, FETCH_EFF_ADDR_LOW);
         /* 4   pointer+1   R  fetch effective address high, */
         /*                    add Y to low byte of effective address */
-	add_action_to_queue(state, FETCH_HIGH_BYTE_ADDR_ADD_INDEX_NO_EXTRA_CYCLE);	
+	add_action_to_queue(state, FETCH_HIGH_BYTE_ADDR_ADD_INDEX_NO_EXTRA_CYCLE);
         /* 5   address+Y*  R  read from effective address, */
         /*                    fix high byte of effective address */
 	add_action_to_queue(state, FIX_HIGH_BYTE_NO_WRITE);
@@ -1536,13 +1538,13 @@ void add_instruction_to_queue(nes_state *state) {
 	add_action_to_queue(state, STALL_CYCLE);
         /* 7   address+Y   W  write the value back to effective address, */
         /*                    and do the operation on it */
-	add_action_to_queue(state, STALL_CYCLE);	
+	add_action_to_queue(state, STALL_CYCLE);
         /* 8   address+Y   W  write the new value to effective address */
-	add_action_to_queue(state, SLO_DO_ASL_THEN_ORA);	
+	add_action_to_queue(state, SLO_DO_ASL_THEN_ORA);
 	break;
 
-	
-	
+
+
 // ORA zeropage, X
     case 0x15:
         /* 2     PC      R  fetch address, increment PC */
@@ -1557,7 +1559,7 @@ void add_instruction_to_queue(nes_state *state) {
 // ASL zero page, X
     case 0x16:
 	state->cpu->high_addr_byte = 0;
-	state->cpu->index_reg = &state->cpu->registers->X;	
+	state->cpu->index_reg = &state->cpu->registers->X;
         /* 2     PC      R  fetch address, increment PC */
 	add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);
         /* 3   address   R  read from address, add index register X to it */
@@ -1595,7 +1597,7 @@ void add_instruction_to_queue(nes_state *state) {
 	add_action_to_queue(state, CLEAR_CARRY_FLAG);
 	break;
 
-	
+
 	// ORA absolute, Y
     case 0x19:
         /* 2     PC      R  fetch low byte of address, increment PC */
@@ -1615,27 +1617,27 @@ void add_instruction_to_queue(nes_state *state) {
 
 	// *SLO absolute, Y - Illegal instruction
     case 0x1B:
-	state->cpu->index_reg = &state->cpu->registers->Y;	
+	state->cpu->index_reg = &state->cpu->registers->Y;
         /* 2    PC       R  fetch low byte of address, increment PC */
-	add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);	
+	add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);
         /* 3    PC       R  fetch high byte of address, */
         /*                  add index register Y to low address byte, */
         /*                  increment PC */
-	add_action_to_queue(state, FETCH_EFF_ADDR_HIGH_ADD_INDEX_INC_PC_NO_EXTRA_CYCLES);	
+	add_action_to_queue(state, FETCH_EFF_ADDR_HIGH_ADD_INDEX_INC_PC_NO_EXTRA_CYCLES);
         /* 4  address+X* R  read from effective address, */
         /*                  fix the high byte of effective address */
 	// The high byte is fixed a cycle early, so just stall here.
-	add_action_to_queue(state, STALL_CYCLE);	
+	add_action_to_queue(state, STALL_CYCLE);
         /* 5  address+X  R  re-read from effective address */
 	add_action_to_queue(state, STALL_CYCLE);
         /* 6  address+X  W  write the value back to effective address, */
         /*                  and do the operation on it */
-	add_action_to_queue(state, STALL_CYCLE);	
+	add_action_to_queue(state, STALL_CYCLE);
         /* 7  address+X  W  write the new value to effective address */
 	add_action_to_queue(state, SLO_DO_ASL_THEN_ORA);
 	break;
 
-	
+
 
 	// ORA absolute, X
     case 0x1D:
@@ -1676,28 +1678,28 @@ void add_instruction_to_queue(nes_state *state) {
 
 	// *SLO absolute, X - Illegal instruction
     case 0x1F:
-	state->cpu->index_reg = &state->cpu->registers->X;	
+	state->cpu->index_reg = &state->cpu->registers->X;
         /* 2    PC       R  fetch low byte of address, increment PC */
-	add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);	
+	add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);
         /* 3    PC       R  fetch high byte of address, */
         /*                  add index register to low address byte, */
         /*                  increment PC */
-	add_action_to_queue(state, FETCH_EFF_ADDR_HIGH_ADD_INDEX_INC_PC_NO_EXTRA_CYCLES);	
+	add_action_to_queue(state, FETCH_EFF_ADDR_HIGH_ADD_INDEX_INC_PC_NO_EXTRA_CYCLES);
         /* 4  address+X* R  read from effective address, */
         /*                  fix the high byte of effective address */
 	// The high byte is fixed a cycle early, so just stall here.
-	add_action_to_queue(state, STALL_CYCLE);	
+	add_action_to_queue(state, STALL_CYCLE);
         /* 5  address+X  R  re-read from effective address */
 	add_action_to_queue(state, STALL_CYCLE);
         /* 6  address+X  W  write the value back to effective address, */
         /*                  and do the operation on it */
-	add_action_to_queue(state, STALL_CYCLE);	
+	add_action_to_queue(state, STALL_CYCLE);
         /* 7  address+X  W  write the new value to effective address */
 	add_action_to_queue(state, SLO_DO_ASL_THEN_ORA);
 	break;
 
 
-	
+
 	// JSR
     case 0x20:
 	add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);
@@ -1740,19 +1742,19 @@ void add_instruction_to_queue(nes_state *state) {
         /* 4   pointer+X   R  fetch effective address low */
 	add_action_to_queue(state, FETCH_EFF_ADDR_LOW);
         /* 5  pointer+X+1  R  fetch effective address high */
-	add_action_to_queue(state, FETCH_EFF_ADDR_HIGH);	
+	add_action_to_queue(state, FETCH_EFF_ADDR_HIGH);
         /* 6    address    R  read from effective address */
 	add_action_to_queue(state, STALL_CYCLE);
         /* 7    address    W  write the value back to effective address, */
         /*                    and do the operation on it */
-	add_action_to_queue(state, STALL_CYCLE);	
+	add_action_to_queue(state, STALL_CYCLE);
         /* 8    address    W  write the new value to effective address */
 	add_action_to_queue(state, RLA_DO_ROL_THEN_AND);
 
-	
+
 	break;
 
-	
+
 	// BIT zero page
     case 0x24:
 	// fetch address, increment PC
@@ -1785,7 +1787,7 @@ void add_instruction_to_queue(nes_state *state) {
 	/*   5  address  W  write the new value to effective address */
 	add_action_to_queue(state, ROL_SOURCE_REG);
 	break;
-	
+
 	// *RLA Zeropage
     case 0x27:
 	state->cpu->high_addr_byte = 0x0;
@@ -1800,7 +1802,7 @@ void add_instruction_to_queue(nes_state *state) {
 	add_action_to_queue(state, RLA_DO_ROL_THEN_AND);
 	break;
 
-	
+
 	// PLP - Pull Process Register (flags) from stack
     case 0x28:
 /*         2    PC     R  read next instruction byte (and throw it away) */
@@ -1836,7 +1838,7 @@ void add_instruction_to_queue(nes_state *state) {
 	// Read from effective address, copy to register
 	add_action_to_queue(state, AND_MEMORY);
 	break;
-	
+
 	// ROL Absolute
     case 0x2E:
 	/* 2    PC     R  fetch low byte of address, increment PC */
@@ -1867,7 +1869,7 @@ void add_instruction_to_queue(nes_state *state) {
 	add_action_to_queue(state, RLA_DO_ROL_THEN_AND);
 	break;
 
-	
+
 	// BMI - Branch Result Minus
     case 0x30:
 	add_action_to_queue(state, FETCH_OPERAND_INC_PC);
@@ -1913,7 +1915,7 @@ void add_instruction_to_queue(nes_state *state) {
 	add_action_to_queue(state, FETCH_EFF_ADDR_LOW);
        /*  4   pointer+1   R  fetch effective address high, */
        /*                     add Y to low byte of effective address */
-	add_action_to_queue(state, FETCH_HIGH_BYTE_ADDR_ADD_INDEX_NO_EXTRA_CYCLE);	
+	add_action_to_queue(state, FETCH_HIGH_BYTE_ADDR_ADD_INDEX_NO_EXTRA_CYCLE);
        /*  5   address+Y*  R  read from effective address, */
        /*                     fix high byte of effective address */
 	add_action_to_queue(state, FIX_HIGH_BYTE_NO_WRITE);
@@ -1926,7 +1928,7 @@ void add_instruction_to_queue(nes_state *state) {
 	add_action_to_queue(state, RLA_DO_ROL_THEN_AND);
 	break;
 
-	
+
 	// AND zeropage, X
     case 0x35:
 	/* 2     PC      R  fetch address, increment PC */
@@ -1941,7 +1943,7 @@ void add_instruction_to_queue(nes_state *state) {
 // ROL zero page, X
     case 0x36:
 	state->cpu->high_addr_byte = 0;
-	state->cpu->index_reg = &state->cpu->registers->X;	
+	state->cpu->index_reg = &state->cpu->registers->X;
         /* 2     PC      R  fetch address, increment PC */
 	add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);
         /* 3   address   R  read from address, add index register X to it */
@@ -2015,7 +2017,7 @@ void add_instruction_to_queue(nes_state *state) {
 	add_action_to_queue(state, RLA_DO_ROL_THEN_AND);
 	break;
 
-	
+
 	// AND absolute, X
     case 0x3D:
         /* 2     PC      R  fetch low byte of address, increment PC */
@@ -2050,7 +2052,7 @@ void add_instruction_to_queue(nes_state *state) {
 	add_action_to_queue(state, STALL_CYCLE);
 	add_action_to_queue(state, ROL_MEMORY);
 	break;
-	
+
 	// *RLA absolute, X
     case 0x3F:
 	/* 2    PC       R  fetch low byte of address, increment PC */
@@ -2109,7 +2111,7 @@ void add_instruction_to_queue(nes_state *state) {
 	break;
 
 	// *SRE indexed indirect, X - Illegal instruction
-	// Shift right one bit in memory, then EOR accumulator with memory. 
+	// Shift right one bit in memory, then EOR accumulator with memory.
     case 0x43:
 	state->cpu->index_reg = &state->cpu->registers->X;
         /* 2      PC       R  fetch pointer address, increment PC */
@@ -2124,13 +2126,13 @@ void add_instruction_to_queue(nes_state *state) {
 	add_action_to_queue(state, STALL_CYCLE);
         /* 7    address    W  write the value back to effective address, */
         /*                    and do the operation on it */
-	add_action_to_queue(state, STALL_CYCLE);	
+	add_action_to_queue(state, STALL_CYCLE);
         /* 8    address    W  write the new value to effective address */
 	add_action_to_queue(state, SRE_DO_LSR_THEN_EOR_ACC);
 	break;
 
 
-	
+
 	// EOR zeropage
     case 0x45:
 	// Clear out high addr byte, to ensure zero-page read
@@ -2171,7 +2173,7 @@ void add_instruction_to_queue(nes_state *state) {
 	add_action_to_queue(state, SRE_DO_LSR_THEN_EOR_ACC);
 	break;
 
-	
+
 	// PHA - Push ACC to stack
     case 0x48:
 	/* R  read next instruction byte (and throw it away) */
@@ -2202,7 +2204,7 @@ void add_instruction_to_queue(nes_state *state) {
 	// Read from effective address, copy to register
 	add_action_to_queue(state, 32);
 	break;
-	
+
 	// LSR Absolute
     case 0x4E:
 	/* 2    PC     R  fetch low byte of address, increment PC */
@@ -2210,10 +2212,10 @@ void add_instruction_to_queue(nes_state *state) {
 	/*        3    PC     R  fetch high byte of address, increment PC */
 	add_action_to_queue(state, FETCH_HIGH_ADDR_BYTE_INC_PC);
 	/*        4  address  R  read from effective address */
-	add_action_to_queue(state, STALL_CYCLE); 
+	add_action_to_queue(state, STALL_CYCLE);
 	/*        5  address  W  write the value back to effective address, */
 	/*                       and do the operation on it */
-	add_action_to_queue(state, STALL_CYCLE); 
+	add_action_to_queue(state, STALL_CYCLE);
 	/*        6  address  W  write the new value to effective address */
 	add_action_to_queue(state, LSR_MEMORY);
 	break;
@@ -2225,15 +2227,15 @@ void add_instruction_to_queue(nes_state *state) {
 	/*        3    PC     R  fetch high byte of address, increment PC */
 	add_action_to_queue(state, FETCH_HIGH_ADDR_BYTE_INC_PC);
 	/*        4  address  R  read from effective address */
-	add_action_to_queue(state, STALL_CYCLE); 
+	add_action_to_queue(state, STALL_CYCLE);
 	/*        5  address  W  write the value back to effective address, */
 	/*                       and do the operation on it */
-	add_action_to_queue(state, STALL_CYCLE); 
+	add_action_to_queue(state, STALL_CYCLE);
 	/*        6  address  W  write the new value to effective address */
 	add_action_to_queue(state, SRE_DO_LSR_THEN_EOR_ACC);
 	break;
 
-	
+
 	// BVC - Branch Overflow clear
     case 0x50:
 	add_action_to_queue(state, FETCH_OPERAND_INC_PC);
@@ -2273,7 +2275,7 @@ void add_instruction_to_queue(nes_state *state) {
 	add_action_to_queue(state, FETCH_EFF_ADDR_LOW);
         /* 4   pointer+1   R  fetch effective address high, */
         /*                    add Y to low byte of effective address */
-	add_action_to_queue(state, FETCH_HIGH_BYTE_ADDR_ADD_INDEX_NO_EXTRA_CYCLE);	
+	add_action_to_queue(state, FETCH_HIGH_BYTE_ADDR_ADD_INDEX_NO_EXTRA_CYCLE);
         /* 5   address+Y*  R  read from effective address, */
         /*                    fix high byte of effective address */
 	add_action_to_queue(state, FIX_HIGH_BYTE_NO_WRITE);
@@ -2281,12 +2283,12 @@ void add_instruction_to_queue(nes_state *state) {
 	add_action_to_queue(state, STALL_CYCLE);
         /* 7   address+Y   W  write the value back to effective address, */
         /*                    and do the operation on it */
-	add_action_to_queue(state, STALL_CYCLE);	
+	add_action_to_queue(state, STALL_CYCLE);
         /* 8   address+Y   W  write the new value to effective address */
 	add_action_to_queue(state, SRE_DO_LSR_THEN_EOR_ACC);
 	break;
 
-	
+
 	// EOR zeropage, X
     case 0x55:
 	/* 2     PC      R  fetch address, increment PC */
@@ -2302,7 +2304,7 @@ void add_instruction_to_queue(nes_state *state) {
 // LSR zero page, X
     case 0x56:
 	state->cpu->high_addr_byte = 0;
-	state->cpu->index_reg = &state->cpu->registers->X;	
+	state->cpu->index_reg = &state->cpu->registers->X;
         /* 2     PC      R  fetch address, increment PC */
 	add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);
         /* 3   address   R  read from address, add index register X to it */
@@ -2354,26 +2356,26 @@ void add_instruction_to_queue(nes_state *state) {
 
 	// *SRE absolute, Y - Illegal instruction
     case 0x5B:
-	state->cpu->index_reg = &state->cpu->registers->Y;	
+	state->cpu->index_reg = &state->cpu->registers->Y;
         /* 2    PC       R  fetch low byte of address, increment PC */
-	add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);	
+	add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);
         /* 3    PC       R  fetch high byte of address, */
         /*                  add index register Y to low address byte, */
         /*                  increment PC */
-	add_action_to_queue(state, FETCH_EFF_ADDR_HIGH_ADD_INDEX_INC_PC_NO_EXTRA_CYCLES);	
+	add_action_to_queue(state, FETCH_EFF_ADDR_HIGH_ADD_INDEX_INC_PC_NO_EXTRA_CYCLES);
         /* 4  address+X* R  read from effective address, */
         /*                  fix the high byte of effective address */
 	// The high byte is fixed a cycle early, so just stall here.
-	add_action_to_queue(state, STALL_CYCLE);	
+	add_action_to_queue(state, STALL_CYCLE);
         /* 5  address+X  R  re-read from effective address */
 	add_action_to_queue(state, STALL_CYCLE);
         /* 6  address+X  W  write the value back to effective address, */
         /*                  and do the operation on it */
-	add_action_to_queue(state, STALL_CYCLE);	
+	add_action_to_queue(state, STALL_CYCLE);
         /* 7  address+X  W  write the new value to effective address */
 	add_action_to_queue(state, SRE_DO_LSR_THEN_EOR_ACC);
 	break;
-	
+
 
 	// EOR absolute, X
     case 0x5D:
@@ -2414,26 +2416,26 @@ void add_instruction_to_queue(nes_state *state) {
 
 	// *SRE absolute, X - Illegal instruction
     case 0x5F:
-	state->cpu->index_reg = &state->cpu->registers->X;	
+	state->cpu->index_reg = &state->cpu->registers->X;
         /* 2    PC       R  fetch low byte of address, increment PC */
-	add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);	
+	add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);
         /* 3    PC       R  fetch high byte of address, */
         /*                  add index register Y to low address byte, */
         /*                  increment PC */
-	add_action_to_queue(state, FETCH_EFF_ADDR_HIGH_ADD_INDEX_INC_PC_NO_EXTRA_CYCLES);	
+	add_action_to_queue(state, FETCH_EFF_ADDR_HIGH_ADD_INDEX_INC_PC_NO_EXTRA_CYCLES);
         /* 4  address+X* R  read from effective address, */
         /*                  fix the high byte of effective address */
 	// The high byte is fixed a cycle early, so just stall here.
-	add_action_to_queue(state, STALL_CYCLE);	
+	add_action_to_queue(state, STALL_CYCLE);
         /* 5  address+X  R  re-read from effective address */
 	add_action_to_queue(state, STALL_CYCLE);
         /* 6  address+X  W  write the value back to effective address, */
         /*                  and do the operation on it */
-	add_action_to_queue(state, STALL_CYCLE);	
+	add_action_to_queue(state, STALL_CYCLE);
         /* 7  address+X  W  write the new value to effective address */
 	add_action_to_queue(state, SRE_DO_LSR_THEN_EOR_ACC);
 	break;
-	
+
 	// RTS - Return from subroutine
     case 0x60:
 	/*  #  address R/W description */
@@ -2501,13 +2503,13 @@ void add_instruction_to_queue(nes_state *state) {
 	add_action_to_queue(state, STALL_CYCLE);
         /* 7    address    W  write the value back to effective address, */
         /*                    and do the operation on it */
-	add_action_to_queue(state, STALL_CYCLE);	
+	add_action_to_queue(state, STALL_CYCLE);
         /* 8    address    W  write the new value to effective address */
 	add_action_to_queue(state, RRA_DO_ROR_THEN_ADC);
 
 	break;
 
-	
+
 	// ADC zeropage
     case 0x65:
 	// Clear out high addr byte, to ensure zero-page read
@@ -2518,7 +2520,7 @@ void add_instruction_to_queue(nes_state *state) {
 	/*       3  address  R  read from effective address */
 	add_action_to_queue(state, ADC_MEMORY);
 	break;
-	
+
 	// ROR Zeropage
     case 0x66:
 	state->cpu->high_addr_byte = 0x0;
@@ -2548,7 +2550,7 @@ void add_instruction_to_queue(nes_state *state) {
 	add_action_to_queue(state, RRA_DO_ROR_THEN_ADC);
 	break;
 
-	
+
 	// ADC Immediate
     case 0x69:
 	add_action_to_queue(state, ADC_IMM_INC_PC);
@@ -2587,7 +2589,7 @@ void add_instruction_to_queue(nes_state *state) {
 	// Read from effective address, copy to register
 	add_action_to_queue(state, ADC_MEMORY);
 	break;
-	
+
 	// ROR Absolute
     case 0x6E:
 	/* 2    PC     R  fetch low byte of address, increment PC */
@@ -2617,7 +2619,7 @@ void add_instruction_to_queue(nes_state *state) {
 	/*        6  address  W  write the new value to effective address */
 	add_action_to_queue(state, RRA_DO_ROR_THEN_ADC);
 	break;
-	
+
 
 	// BVS - Branch Overflow Set
     case 0x70:
@@ -2647,7 +2649,7 @@ void add_instruction_to_queue(nes_state *state) {
 	/*       6+  address+Y   R  read from effective address */
 	// ^Will be added in 313 if necessary
 	break;
-	
+
 	// *RRA indirect-indexed, Y
     case 0x73:
 	state->cpu->index_reg = &state->cpu->registers->Y;
@@ -2657,7 +2659,7 @@ void add_instruction_to_queue(nes_state *state) {
 	add_action_to_queue(state, FETCH_EFF_ADDR_LOW);
         /* 4   pointer+1   R  fetch effective address high, */
         /*                    add Y to low byte of effective address */
-	add_action_to_queue(state, FETCH_HIGH_BYTE_ADDR_ADD_INDEX_NO_EXTRA_CYCLE);	
+	add_action_to_queue(state, FETCH_HIGH_BYTE_ADDR_ADD_INDEX_NO_EXTRA_CYCLE);
         /* 5   address+Y*  R  read from effective address, */
         /*                    fix high byte of effective address */
 	add_action_to_queue(state, FIX_HIGH_BYTE_NO_WRITE);
@@ -2665,17 +2667,17 @@ void add_instruction_to_queue(nes_state *state) {
 	add_action_to_queue(state, STALL_CYCLE);
         /* 7   address+Y   W  write the value back to effective address, */
         /*                    and do the operation on it */
-	add_action_to_queue(state, STALL_CYCLE);	
+	add_action_to_queue(state, STALL_CYCLE);
         /* 8   address+Y   W  write the new value to effective address */
 	add_action_to_queue(state, RRA_DO_ROR_THEN_ADC);
 	break;
 
 
-	
+
 	// ADC zeropage, X
     case 0x75:
 	state->cpu->high_addr_byte = 0x0;
-	state->cpu->index_reg = &state->cpu->registers->X;	
+	state->cpu->index_reg = &state->cpu->registers->X;
 	/* 2     PC      R  fetch address, increment PC */
 	add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);
 	/* 3   address   R  read from address, add index register to it */
@@ -2747,28 +2749,28 @@ void add_instruction_to_queue(nes_state *state) {
 
 	// *RRA absolute, Y - Illegal instruction
     case 0x7B:
-	state->cpu->index_reg = &state->cpu->registers->Y;	
+	state->cpu->index_reg = &state->cpu->registers->Y;
         /* 2    PC       R  fetch low byte of address, increment PC */
-	add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);	
+	add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);
         /* 3    PC       R  fetch high byte of address, */
         /*                  add index register Y to low address byte, */
         /*                  increment PC */
-	add_action_to_queue(state, FETCH_EFF_ADDR_HIGH_ADD_INDEX_INC_PC_NO_EXTRA_CYCLES);	
+	add_action_to_queue(state, FETCH_EFF_ADDR_HIGH_ADD_INDEX_INC_PC_NO_EXTRA_CYCLES);
         /* 4  address+X* R  read from effective address, */
         /*                  fix the high byte of effective address */
 	// The high byte is fixed a cycle early, so just stall here.
-	add_action_to_queue(state, STALL_CYCLE);	
+	add_action_to_queue(state, STALL_CYCLE);
         /* 5  address+X  R  re-read from effective address */
 	add_action_to_queue(state, STALL_CYCLE);
         /* 6  address+X  W  write the value back to effective address, */
         /*                  and do the operation on it */
-	add_action_to_queue(state, STALL_CYCLE);	
+	add_action_to_queue(state, STALL_CYCLE);
         /* 7  address+X  W  write the new value to effective address */
 	add_action_to_queue(state, RRA_DO_ROR_THEN_ADC);
 	break;
 
 
-	
+
 	// ADC absolute, X
     case 0x7D:
         /* 2     PC      R  fetch low byte of address, increment PC */
@@ -2808,22 +2810,22 @@ void add_instruction_to_queue(nes_state *state) {
 
 	// *RRA absolute, X - Illegal instruction
     case 0x7F:
-	state->cpu->index_reg = &state->cpu->registers->X;	
+	state->cpu->index_reg = &state->cpu->registers->X;
         /* 2    PC       R  fetch low byte of address, increment PC */
-	add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);	
+	add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);
         /* 3    PC       R  fetch high byte of address, */
         /*                  add index register Y to low address byte, */
         /*                  increment PC */
-	add_action_to_queue(state, FETCH_EFF_ADDR_HIGH_ADD_INDEX_INC_PC_NO_EXTRA_CYCLES);	
+	add_action_to_queue(state, FETCH_EFF_ADDR_HIGH_ADD_INDEX_INC_PC_NO_EXTRA_CYCLES);
         /* 4  address+X* R  read from effective address, */
         /*                  fix the high byte of effective address */
 	// The high byte is fixed a cycle early, so just stall here.
-	add_action_to_queue(state, STALL_CYCLE);	
+	add_action_to_queue(state, STALL_CYCLE);
         /* 5  address+X  R  re-read from effective address */
 	add_action_to_queue(state, STALL_CYCLE);
         /* 6  address+X  W  write the value back to effective address, */
         /*                  and do the operation on it */
-	add_action_to_queue(state, STALL_CYCLE);	
+	add_action_to_queue(state, STALL_CYCLE);
         /* 7  address+X  W  write the new value to effective address */
 	add_action_to_queue(state, RRA_DO_ROR_THEN_ADC);
 	break;
@@ -2875,21 +2877,21 @@ void add_instruction_to_queue(nes_state *state) {
 	add_action_to_queue(state, SAX_PERFORM_AND_THEN_WRITE_EFF_ADDR_NO_AFFECT_FLAGS);
 	break;
 
-    
+
 	// STY Zeropage
     case 0x84:
 	state->cpu->source_reg = &state->cpu->registers->Y;
 	add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);
 	add_action_to_queue(state, WRITE_REG_TO_EFF_ADDR_ZEROPAGE);
 	break;
-    
+
 	// STA Zeropage
     case 0x85:
 	state->cpu->source_reg = &state->cpu->registers->ACC;
 	add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);
 	add_action_to_queue(state, WRITE_REG_TO_EFF_ADDR_ZEROPAGE);
 	break;
-    
+
 	// STX Zeropage
     case 0x86:
 	state->cpu->source_reg = &state->cpu->registers->X;
@@ -2903,9 +2905,9 @@ void add_instruction_to_queue(nes_state *state) {
 	add_action_to_queue(state, FETCH_LOW_ADDR_BYTE_INC_PC);
 	add_action_to_queue(state, SAX_PERFORM_AND_THEN_WRITE_EFF_ADDR_NO_AFFECT_FLAGS);
 	break;
-    
 
-    
+
+
 	// DEC - Decrement Y register
     case 0x88:
 	state->cpu->source_reg = &state->cpu->registers->Y;
@@ -2932,7 +2934,7 @@ void add_instruction_to_queue(nes_state *state) {
 	/*       4  address  W  write register to effective address */
 	add_action_to_queue(state, WRITE_REG_TO_EFF_ADDR_NON_ZEROPAGE);
 	break;
-    
+
 	// STX Absolute
     case 0x8E:
 	state->cpu->source_reg = &state->cpu->registers->X;
@@ -2954,7 +2956,7 @@ void add_instruction_to_queue(nes_state *state) {
 	add_action_to_queue(state, SAX_PERFORM_AND_THEN_WRITE_EFF_ADDR_NO_AFFECT_FLAGS);
 	break;
 
-    
+
 	// TXA
     case 0x8A:
 	state->cpu->source_reg = &state->cpu->registers->X;
@@ -3053,7 +3055,7 @@ void add_instruction_to_queue(nes_state *state) {
 	/*        * The high byte of the effective address is always zero, */
 	/*          i.e. page boundary crossings are not handled. */
 	break;
-      
+
 // STX zero page, Y
     case 0x96:
         /* 2     PC      R  fetch address, increment PC */
@@ -3197,7 +3199,7 @@ void add_instruction_to_queue(nes_state *state) {
 	break;
 
 
-    
+
 	// LDY Zero page
     case 0xA4:
 	// Clear out high addr byte, to ensure zero-page read
@@ -3236,7 +3238,7 @@ void add_instruction_to_queue(nes_state *state) {
 	add_action_to_queue(state, LAX_READ_EFF_ADDR_STORE_IN_REGS_AFFECT_NZ_FLAGS);
 	break;
 
-    
+
 	// LDX Zero page
     case 0xA6:
 	// Clear out high addr byte, to ensure zero-page read
@@ -3373,7 +3375,7 @@ void add_instruction_to_queue(nes_state *state) {
 	break;
 
 
-    
+
 // LDY zero page, X
     case 0xB4:
 	state->cpu->index_reg = &state->cpu->registers->X;
@@ -3474,7 +3476,7 @@ void add_instruction_to_queue(nes_state *state) {
 	/*                was invalid during cycle #4, i.e. page boundary was crossed. */
 
 	break;
-    
+
 	// TSX - Transfer SP to X
     case 0xBA:
 	state->cpu->source_reg = &state->cpu->registers->SP;
@@ -3557,7 +3559,7 @@ void add_instruction_to_queue(nes_state *state) {
     case 0xC0:
 	add_action_to_queue(state, CPY_IMM_INC_PC);
 	break;
-      
+
 	// CMP indexed indirect
     case 0xC1:
 	/*   2      PC       R  fetch pointer address, increment PC */
@@ -3601,7 +3603,7 @@ void add_instruction_to_queue(nes_state *state) {
 	state->cpu->index_reg = &state->cpu->registers->X;
 	state->cpu->source_reg = &state->cpu->registers->ACC;
 	/* 2      PC       R  fetch pointer address, increment PC */
-	add_action_to_queue(state, FETCH_ZP_PTR_ADDR_INC_PC); 
+	add_action_to_queue(state, FETCH_ZP_PTR_ADDR_INC_PC);
 	/*   3    pointer    R  read from the address, add X to it */
 	add_action_to_queue(state, READ_ADDR_ADD_INDEX_STORE_IN_OPERAND);
 	/*   4   pointer+X   R  fetch effective address low */
@@ -3615,10 +3617,10 @@ void add_instruction_to_queue(nes_state *state) {
 	add_action_to_queue(state, STALL_CYCLE);
 	/*  8    address    W  write the new value to effective address */
 	add_action_to_queue(state, DCP_PERFORM_DEC_MEMORY_THEN_CMP_MEMORY);
-      
+
 	break;
 
-    
+
 	// CPY zeropage
     case 0xC4:
 	// Clear out high addr byte, to ensure zero-page read
@@ -3670,7 +3672,7 @@ void add_instruction_to_queue(nes_state *state) {
 	add_action_to_queue(state, DCP_PERFORM_DEC_MEMORY_THEN_CMP_MEMORY);
 	break;
 
-	
+
 	// INY - Increment Y register
     case 0xC8:
 	state->cpu->source_reg = &state->cpu->registers->Y;
@@ -3734,7 +3736,7 @@ void add_instruction_to_queue(nes_state *state) {
 	add_action_to_queue(state, DCP_PERFORM_DEC_MEMORY_THEN_CMP_MEMORY);
 	break;
 
-	
+
 	// BNE
     case 0xD0:
 	add_action_to_queue(state, FETCH_OPERAND_INC_PC);
@@ -3767,14 +3769,14 @@ void add_instruction_to_queue(nes_state *state) {
 
 	// *DCP indirect-indexed, Y
     case 0xD3:
-	state->cpu->index_reg = &state->cpu->registers->Y;	
+	state->cpu->index_reg = &state->cpu->registers->Y;
        /*  2      PC       R  fetch pointer address, increment PC */
-	add_action_to_queue(state, FETCH_ZP_PTR_ADDR_INC_PC);	
+	add_action_to_queue(state, FETCH_ZP_PTR_ADDR_INC_PC);
        /*  3    pointer    R  fetch effective address low */
-	add_action_to_queue(state, FETCH_EFF_ADDR_LOW);	
+	add_action_to_queue(state, FETCH_EFF_ADDR_LOW);
        /*  4   pointer+1   R  fetch effective address high, */
        /*                     add Y to low byte of effective address */
-	add_action_to_queue(state, FETCH_HIGH_BYTE_ADDR_ADD_INDEX_NO_EXTRA_CYCLE);	
+	add_action_to_queue(state, FETCH_HIGH_BYTE_ADDR_ADD_INDEX_NO_EXTRA_CYCLE);
        /*  5   address+Y*  R  read from effective address, */
        /*                     fix high byte of effective address */
 	add_action_to_queue(state, FIX_HIGH_BYTE_NO_WRITE);
@@ -3782,7 +3784,7 @@ void add_instruction_to_queue(nes_state *state) {
 	add_action_to_queue(state, STALL_CYCLE);
        /*  7   address+Y   W  write the value back to effective address, */
        /*                     and do the operation on it */
-	add_action_to_queue(state, STALL_CYCLE);	
+	add_action_to_queue(state, STALL_CYCLE);
        /*  8   address+Y   W  write the new value to effective address */
 	add_action_to_queue(state, DCP_PERFORM_DEC_MEMORY_THEN_CMP_MEMORY);
        /* Notes: The effective address is always fetched from zero page, */
@@ -3792,7 +3794,7 @@ void add_instruction_to_queue(nes_state *state) {
        /*          at this time, i.e. it may be smaller by $100. */
 	break;
 
-	
+
 	// CMP zeropage, X
     case 0xD5:
 	/* 2     PC      R  fetch address, increment PC */
@@ -3842,7 +3844,7 @@ void add_instruction_to_queue(nes_state *state) {
 
 	break;
 
-	
+
 
 
 	// CLD - Clear Decimal Flag
@@ -3954,7 +3956,7 @@ void add_instruction_to_queue(nes_state *state) {
 	break;
 
 
-	
+
 	// CPX Immediate
     case 0xE0:
 	add_action_to_queue(state, CPX_IMM_INC_PC);
@@ -4003,7 +4005,7 @@ void add_instruction_to_queue(nes_state *state) {
 	state->cpu->index_reg = &state->cpu->registers->X;
 	state->cpu->source_reg = &state->cpu->registers->ACC;
 	/* 2      PC       R  fetch pointer address, increment PC */
-	add_action_to_queue(state, FETCH_ZP_PTR_ADDR_INC_PC); 
+	add_action_to_queue(state, FETCH_ZP_PTR_ADDR_INC_PC);
 	/*   3    pointer    R  read from the address, add X to it */
 	add_action_to_queue(state, READ_ADDR_ADD_INDEX_STORE_IN_OPERAND);
 	/*   4   pointer+X   R  fetch effective address low */
@@ -4017,10 +4019,10 @@ void add_instruction_to_queue(nes_state *state) {
 	add_action_to_queue(state, STALL_CYCLE);
 	/*  8    address    W  write the new value to effective address */
 	add_action_to_queue(state, ISB_PERFORM_INC_MEMORY_THEN_SBC_MEMORY);
-      
+
 	break;
 
-	
+
 	// CPX zeropage
     case 0xE4:
 	// Clear out high addr byte, to ensure zero-page read
@@ -4075,7 +4077,7 @@ void add_instruction_to_queue(nes_state *state) {
 	add_action_to_queue(state, ISB_PERFORM_INC_MEMORY_THEN_SBC_MEMORY);
 	break;
 
-	
+
 	// INX - Increment X register
     case 0xE8:
 	state->cpu->source_reg = &state->cpu->registers->X;
@@ -4145,7 +4147,7 @@ void add_instruction_to_queue(nes_state *state) {
 	add_action_to_queue(state, ISB_PERFORM_INC_MEMORY_THEN_SBC_MEMORY);
 	break;
 
-	
+
 	// BEQ
     case 0xF0:
        /*  2     PC      R  fetch operand, increment PC */
@@ -4165,7 +4167,7 @@ void add_instruction_to_queue(nes_state *state) {
        /*        + If branch is taken, this cycle will be executed. */
        /*        ! If branch occurs to different page, this cycle will be */
        /*          executed. */
-	
+
 	add_action_to_queue(state, FETCH_OPERAND_INC_PC);
 	if (is_zero_flag_set(state)) {
 	    add_action_to_queue(state, ADD_OPERAND_TO_PCL);
@@ -4199,8 +4201,8 @@ void add_instruction_to_queue(nes_state *state) {
 	/* state->cpu->destination_reg = &state->cpu->registers->ACC; */
 
        /*  2      PC       R  fetch pointer address, increment PC */
-	add_action_to_queue(state, FETCH_ZP_PTR_ADDR_INC_PC);	
-       /*  3    pointer    R  fetch effective address low */
+	add_action_to_queue(state, FETCH_ZP_PTR_ADDR_INC_PC);
+        /*  3    pointer    R  fetch effective address low */
 	add_action_to_queue(state, FETCH_EFF_ADDR_LOW);
        /*  4   pointer+1   R  fetch effective address high, */
        /*                     add Y to low byte of effective address */
@@ -4213,8 +4215,8 @@ void add_instruction_to_queue(nes_state *state) {
 	add_action_to_queue(state, STALL_CYCLE);
        /*  7   address+Y   W  write the value back to effective address, */
        /*                     and do the operation on it */
-	add_action_to_queue(state, STALL_CYCLE);	
-       /*  8   address+Y   W  write the new value to effective address */
+	add_action_to_queue(state, STALL_CYCLE);
+        /*  8   address+Y   W  write the new value to effective address */
 	add_action_to_queue(state, ISB_PERFORM_INC_MEMORY_THEN_SBC_MEMORY);
        /* Notes: The effective address is always fetched from zero page, */
        /*        i.e. the zero page boundary crossing is not handled. */
@@ -4233,7 +4235,7 @@ void add_instruction_to_queue(nes_state *state) {
 	break;
 
 
-	
+
 	// SBC zeropage, X
     case 0xF5:
 	/* 2     PC      R  fetch address, increment PC */
@@ -4280,7 +4282,7 @@ void add_instruction_to_queue(nes_state *state) {
 	add_action_to_queue(state, ISB_PERFORM_INC_MEMORY_THEN_SBC_MEMORY);
 	break;
 
-	
+
 
 	// SED - Set Decimal Flag
     case 0xF8:
@@ -4326,7 +4328,7 @@ void add_instruction_to_queue(nes_state *state) {
 	add_action_to_queue(state, ISB_PERFORM_INC_MEMORY_THEN_SBC_MEMORY);
 	break;
 
-	
+
 	// SBC absolute, X
     case 0xFD:
         /* 2     PC      R  fetch low byte of address, increment PC */
@@ -4384,7 +4386,7 @@ void add_instruction_to_queue(nes_state *state) {
 	add_action_to_queue(state, ISB_PERFORM_INC_MEMORY_THEN_SBC_MEMORY);
 	break;
 
-	
+
 	// unimplemented instruction is a fatal error
 	// Flag it so emulation can be stopped
     default:
@@ -4404,18 +4406,18 @@ void trigger_interrupt(nes_state *state) {
 /*  1    PC     R  fetch opcode (and discard it - $00 (BRK) is forced into the opcode register instead) */
     add_action_to_queue(state, STALL_CYCLE);
 /*  2    PC     R  read next instruction byte (actually the same as above, since PC increment is suppressed. Also discarded.) */
-    add_action_to_queue(state, STALL_CYCLE);    
-/*  3  $0100,S  W  push PCH on stack, decrement S */
+    add_action_to_queue(state, STALL_CYCLE);
+    /*  3  $0100,S  W  push PCH on stack, decrement S */
     add_action_to_queue(state, PUSH_PCH_DEC_S);
 /*  4  $0100,S  W  push PCL on stack, decrement S */
-    add_action_to_queue(state, PUSH_PCL_DEC_S);    
-/* *** At this point, the signal status determines which interrupt vector is used *** */
+    add_action_to_queue(state, PUSH_PCL_DEC_S);
+    /* *** At this point, the signal status determines which interrupt vector is used *** */
 /*  5  $0100,S  W  push P on stack (with B flag *clear*), decrement S */
     add_action_to_queue(state, PUSH_STATUS_REG_DEC_S_CLEAR_B_FLAG);
 /*  6   A       R  fetch PCL (A = FFFE for IRQ, A = FFFA for NMI), set I flag */
     add_action_to_queue(state, NMI_FETCH_PCL);
 /*  7   A       R  fetch PCH (A = FFFF for IRQ, A = FFFB for NMI) */
-    add_action_to_queue(state, NMI_FETCH_PCH);    
+    add_action_to_queue(state, NMI_FETCH_PCH);
 }
 
 
